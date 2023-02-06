@@ -6,7 +6,7 @@ This is a PyTorch implementation of MBP for the task of predicting protein-ligan
 ![MBP_framework](visualization/MBP_framework.png)
 
 ## Installation
-We provide a script **conda_env.sh** that makes it easy to install these dependencies. You just need to modify several packages according to you cuda version.
+We provide a script **conda_env.sh** that makes it easy to install the dependencies of MBP. You just need to modify several packages according to you cuda version.
 ```
 conda create -y -n torch_geo python=3.7
 conda activate torch_geo
