@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from UltraFlow import layers
+from MBP import layers
 
 # margin ranking loss
 class pair_wise_ranking_loss(nn.Module):

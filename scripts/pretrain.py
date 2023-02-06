@@ -1,13 +1,13 @@
 import argparse
 import os
-from UltraFlow.models.sbap import *
-from UltraFlow import commons, runner
+from MBP.models.sbap import *
+from MBP import commons, runner
 from datetime import datetime
 from time import time
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config_path', type=str, default='./config/affinity/affinity_default.yaml',help='path of dataset')
+    parser.add_argument('--config_path', type=str, default='./config/affinity_default.yaml',help='path of dataset')
     args = parser.parse_args()
 
     # get config

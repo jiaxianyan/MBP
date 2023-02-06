@@ -6,7 +6,7 @@ import torch
 import numpy as np
 import pandas as pd
 from math import log
-from UltraFlow import commons, layers
+from MBP import commons, layers
 from tqdm import tqdm
 from copy import deepcopy
 from collections import defaultdict
@@ -90,9 +90,6 @@ def load_chembl_smina_assay_specific_rank_pretrain(config):
                     f'_lgmn{lig_max_neighbors}_pgmn{prot_max_neighbors}' \
                     f'_igmn{inter_min_neighbors}_igmn{inter_max_neighbors}'
 
-    if test_2:
-        processed_dir += '_test2'
-
     if not os.path.exists(processed_dir):
         os.makedirs(processed_dir)
 
@@ -105,8 +102,6 @@ def load_chembl_smina_assay_specific_rank_pretrain(config):
 
     if not os.path.exists(f'{processed_dir}/multi_graphs.pkl'):
         uniprot_names = os.listdir(dataset_path)
-        if test_2:
-            uniprot_names = uniprot_names[:5] + ['P13922']
 
         if not os.path.exists(f'{processed_dir}/ligand_representations.pkl'):
             valid_ligand_flag_list = []
@@ -393,109 +388,6 @@ class chem_assay_specific_rank_pretrain_pairwise_v1():
         self.pro_node_dim = self.prot_graphs[0].ndata['h'].shape[1]
         self.pro_edge_dim = self.prot_graphs[0].edata['e'].shape[1]
         self.inter_edge_dim = 15
-
-# class chem_assay_specific_rank_pretrain_pairwise_v2(chem_assay_specific_rank_pretrain_pairwise_v1):
-#     def __init__(self, lig_graphs, prot_graphs, inter_graphs, labels,
-#                  graph_prot_index, df, assays,
-#                  test_2, batch_size, drop_last, assay_des_type, assay_d=None):
-#         super(chem_assay_specific_rank_pretrain_pairwise_v2, self).__init__(lig_graphs, prot_graphs, inter_graphs, labels, graph_prot_index, df, assays, test_2, assay_d)
-#         self.batch_size = batch_size
-#         self.drop_last = drop_last
-#         self.assay_d = assay_d
-#         self.assay_des_type = assay_des_type
-#
-#         length = len(self.lig_graphs) // self.batch_size
-#         b = len(self.lig_graphs) % self.batch_size
-#         if (b > 1) or (b == 1 and not self.drop_last):
-#             length += 1
-#         self.length = length
-#         print(f'num of data :{len(self.lig_graphs)}')
-#         print(f'dataset length :{self.length}')
-#
-#     def __len__(self):
-#
-#         return self.length
-#
-#     def getitem(self, item):
-#         lig_graph = deepcopy(self.lig_graphs[item])
-#         prot_graph_index = self.graph_prot_index[item]
-#         prot_graph = deepcopy(self.prot_graphs[prot_graph_index])
-#         inter_graph = deepcopy(self.inter_graphs[item])
-#         label = deepcopy(self.labels[item])
-#
-#         inter_d = inter_graph.edata['d']
-#         squared_distance = inter_d ** 2
-#         all_sigmas_dist = [1.5 ** x for x in range(15)]
-#         prot_square_distance_scale = 10.0
-#         x_rel_mag = torch.cat([torch.exp(-(squared_distance / prot_square_distance_scale) / sigma) for sigma in
-#                                all_sigmas_dist], dim=-1)
-#         inter_graph.edata['e'] = x_rel_mag
-#
-#         return lig_graph, prot_graph, inter_graph, label, item,
-#
-#     def get_pair_index(self, batch_assay_index):
-#         pair_a_index, pair_b_index = [], []
-#         assay_num_list = []
-#
-#         previous_assay = batch_assay_index[0]
-#         assay_num = 1
-#         for a in batch_assay_index[1:]:
-#             if previous_assay == a:
-#                 assay_num += 1
-#             else:
-#                 assay_num_list.append(assay_num)
-#                 previous_assay = a
-#                 assay_num = 1
-#         assay_num_list.append(assay_num)
-#
-#         cur_index = 0
-#         for i in assay_num_list:
-#             for j in range(i):
-#                 pair_a_index.extend([j + cur_index] * (i - 1))
-#                 pair_b_index.extend([k + cur_index for k in range(i) if j != k])
-#             cur_index += i
-#
-#         return pair_a_index + pair_b_index
-#
-#     def new_epoch_shuffle(self):
-#         random.shuffle(self.assays)
-#         sample_random_index = []
-#         sample_assay_index = []
-#         for a in self.assays:
-#             global_indexs = self.assay_to_index[a]
-#             random.shuffle(global_indexs)
-#             sample_random_index.extend(global_indexs)
-#             sample_assay_index.extend([a] * len(global_indexs))
-#
-#         self.sample_random_index = sample_random_index
-#         self.sample_assay_index = sample_assay_index
-#
-#     def __getitem__(self, item):
-#
-#         start = item * self.batch_size
-#         end = (item + 1) * self.batch_size
-#         batch_global_index = self.sample_random_index[start:end]
-#         batch_assay_index = self.sample_assay_index[start:end]
-#         if len(batch_global_index) == 0:
-#             print(f'index num 0, item: {item}')
-#             print(f'sample random index num :{len(self.sample_random_index)}')
-#             print(f'dataset length :{self.length}')
-#
-#         g_ligs, g_prots, g_inters, labels, items = [], [], [], [], []
-#         for idx in batch_global_index:
-#             lig_graph, prot_graph, inter_graph, label, item = self.getitem(idx)
-#             g_ligs.append(lig_graph)
-#             g_prots.append(prot_graph)
-#             g_inters.append(inter_graph)
-#             labels.append(label)
-#             items.append(item)
-#
-#         return dgl.batch(g_ligs),\
-#                dgl.batch(g_prots),\
-#                dgl.batch(g_inters),\
-#                torch.unsqueeze(torch.stack(labels, dim=0),dim=-1),\
-#                list(items),\
-#                self.get_pair_index(batch_assay_index)
 
 class chem_assay_specific_rank_valid():
     def __init__(self, lig_graphs, prot_graphs, inter_graphs, labels,
@@ -830,10 +722,9 @@ class pdbbind_finetune():
             with open(f'{self.processed_dir}/molecular_representations.pkl','rb') as f:
                 molecular_representations = pickle.load(f)
 
-        lig_coords, lig_features, lig_edges, lig_node_type, lig_rdkit_coords, \
+        lig_coords, lig_features, lig_edges, lig_node_type, \
         prot_coords, prot_features, prot_edges, prot_node_type,\
-        sec_features, alpha_c_coords, c_coords, n_coords,\
-        _, _ = map(list, zip(*molecular_representations))
+        sec_features, alpha_c_coords, c_coords, n_coords = map(list, zip(*molecular_representations))
 
 
         if self.prot_graph_type.startswith('atom'):
@@ -863,11 +754,6 @@ class pdbbind_finetune():
         processed_data = (lig_graphs, prot_graphs, inter_graphs, labels)
         with open(f'{self.processed_dir}/multi_graphs.pkl','wb') as f:
             pickle.dump(processed_data,f)
-
-
-# def collate_affinity(batch):
-#     g_ligs, g_prots, g_inters, labels, items = list(zip(*batch))
-#     return dgl.batch(g_ligs), dgl.batch(g_prots), dgl.batch(g_inters), torch.unsqueeze(torch.stack(labels, dim=0), dim=-1), list(items)
 
 def collate_pdbbind_affinity(batch):
     g_ligs, g_prots, g_inters, labels, items, des_list = list(zip(*batch))

@@ -1,0 +1,104 @@
+target: Chembl_Rank
+base_path: ./MBP
+root_dir: ./MBP/log
+seed: 43
+
+train:
+  gpu_memory_need: 2000
+  repeat: 3
+  optimizer:
+    type: Adam
+    lr: 0.001
+    weight_decay: 0.000
+    dropout: 0.0
+  scheduler:
+    type: plateau
+    factor: 0.6
+    # factor: 0.95
+    patience: 10
+    min_lr: 1e-4
+  gpus:
+    - 0
+    - 1
+    - 2
+    - 3
+  resume_train: false
+  resume_epoch: latest
+  resume_now: null
+  batch_size: 8
+  shuffle: true
+  num_workers: 1
+  pretrain_epochs: 100
+  finetune_epochs: 1000
+  early_stop: 70
+  log_interval:
+  eval: true
+  save: true
+  ranking_loss: pair_wise_v2 # [null, pair_wise_v1, pair_wise_v2]
+  ranking_loss_lambda: 1.0
+  use_pretrain_model: true
+  pretrain_ranking_loss: pairwise_v2 # [pairwise_v1, pairwise_v2], v1: image deepth prediction, v2: recommend system
+  pretrain_sampling_method: pairwise_v1 # [pointwise, pairwise_v1]
+  pretrain_ranking_loss_lambda: 1.0
+  pretrain_regression_loss_lambda: 0.3
+  pretrain_regression_loss_lambda_degrade_ratio: 1.0
+  pretrain_regression_loss_lambda_degrade_epoch: 1
+  pretrain_use_assay_description: false
+  pretrain_assay_mlp_share: true
+  pretrain_mtl_IC50_lambda: 1.0
+  pretrain_mtl_Kd_lambda: 1.0
+  pretrain_mtl_Ki_lambda: 1.0
+  pretrain_mtl_K_lambda: 1.0
+  multi_task: IC50K # [IC50KdKi, IC50K, false]
+  finetune_times: 3
+  finetune_new_affinity_head: false 
+
+
+test:
+  epoch: null
+  now: null
+
+data:
+  dataset_name: chembl_in_pdbbind_smina #
+  use_ic50: true
+  use_ki: true
+  use_kd: true
+  affinity_relation: '=' # [=, >, all], all: use > and =
+  finetune_dataset_name: pdbbind2016_finetune
+  generalize_dataset_name: csar_test
+  split_type: assay_specific
+  drop_last: true
+  dataset_path: ./MBP/data
+  labels_path: ./MBP/data/INDEX_general_PL_data.2016
+  generalize_labels_path: ./MBP/data/CSAR_NRC_HiQ_Set/SUMMARY_FILES/score_total.txt
+  generalize_csar_test: ./MBP/data/csar_2016
+  finetune_train_names: ./MBP/data/pdbbind2016_train
+  finetune_valid_names: ./MBP/data/pdbbind2016_valid
+  finetune_test_names: ./MBP/data/pdbbind2016_test
+  ligcut: 5.0
+  protcut: 30.0
+  intercut: 12.0
+  chaincut: 10
+  prot_graph_type: residue_complete
+  n_jobs: 8
+  lig_max_neighbors: null
+  prot_max_neighbors: 10
+  inter_min_neighbors: null
+  inter_max_neighbors: null
+  lig_type: openbabel
+
+model:
+  model_type: Affinity_GNNs # [Affinity_GNNs, IGN, IGN_basic]
+  GNN_type: AttentiveFP # [GCN, GAT, GIN, EGNN, AttentiveFP]
+  out_dim: 1
+  aux_dim: 8
+  num_layers: 3
+  hidden_dim: 128 # 256 for IGN, and 128 for others 
+  inter_out_dim: 128 # 200 for IGN, and 128 for others
+  fc_hidden_dim:  [128,128,128] # [200,200] for IGN, and [128,128,128] for others
+  assay_des_fc_hidden_dim: [512] # [768, 512]
+  fintune_fc_hidden_dim: [128]
+  readout: w_sum
+  dropout: 0.1
+  jk: sum
+

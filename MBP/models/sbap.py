@@ -1,125 +1,6 @@
 import torch
 import torch.nn as nn
-from UltraFlow import layers, losses
-
-class IGN_basic(nn.Module):
-    def __init__(self,config):
-        super(IGN_basic, self).__init__()
-        self.config = config
-        self.pretrain_assay_mlp_share = config.train.pretrain_assay_mlp_share
-        self.pretrain_use_assay_description = config.train.pretrain_use_assay_description
-        self.graph_conv = layers.ModifiedAttentiveFPGNNV2(config.model.lig_node_dim, config.model.lig_edge_dim, config.model.num_layers, config.model.hidden_dim, config.model.dropout, config.model.jk)
-        if config.model.jk == 'concat':
-            self.noncov_graph = layers.DTIConvGraph3Layer_IGN_basic(config.model.hidden_dim * config.model.num_layers + config.model.inter_edge_dim, config.model.inter_out_dim, config.model.dropout)
-        else:
-            self.noncov_graph = layers.DTIConvGraph3Layer_IGN_basic(config.model.hidden_dim + config.model.inter_edge_dim, config.model.inter_out_dim, config.model.dropout)
-
-        self.FC = layers.FC(config.model.inter_out_dim * 2, config.model.fc_hidden_dim, config.model.dropout, config.model.out_dim)
-        self.readout = layers.ReadsOutLayer(config.model.inter_out_dim, config.model.readout)
-        self.softmax = nn.Softmax(dim=1)
-        if self.pretrain_use_assay_description:
-            print(f'use assay descrption type: {config.data.assay_des_type}')
-            if self.pretrain_assay_mlp_share:
-                self.assay_info_aggre_mlp = layers.FC(config.data.assay_des_dim, config.model.assay_des_fc_hidden_dim,
-                                                  config.model.dropout, config.model.inter_out_dim * 2)
-            else:
-                self.assay_info_aggre_mlp_pointwise = layers.FC(config.data.assay_des_dim, config.model.assay_des_fc_hidden_dim,
-                                                        config.model.dropout, config.model.inter_out_dim * 2)
-                self.assay_info_aggre_mlp_pairwise = layers.FC(config.data.assay_des_dim, config.model.assay_des_fc_hidden_dim,
-                                                        config.model.dropout, config.model.inter_out_dim * 2)
-
-    def forward(self, batch):
-        bg_lig, bg_prot, bg_inter, labels, _, ass_des = batch
-
-        node_feats_lig = self.graph_conv(bg_lig)
-        node_feats_prot = self.graph_conv(bg_prot)
-        bg_inter.ndata['h'] = self.alignfeature(bg_lig,bg_prot,node_feats_lig,node_feats_prot)
-        bond_feats_inter = self.noncov_graph(bg_inter)
-        graph_embedding = self.readout(bg_inter, bond_feats_inter)
-
-        if self.pretrain_use_assay_description:
-            if self.pretrain_assay_mlp_share:
-                ranking_assay_embedding = self.assay_info_aggre_mlp(ass_des)
-                affinity_pred = self.FC(graph_embedding + ranking_assay_embedding)
-            else:
-                regression_assay_embedding = self.assay_info_aggre_mlp_pointwise(ass_des)
-                affinity_pred = self.FC(graph_embedding + regression_assay_embedding)
-                ranking_assay_embedding = self.assay_info_aggre_mlp_pairwise(ass_des)
-        else:
-            affinity_pred = self.FC(graph_embedding)
-            ranking_assay_embedding = torch.zeros(len(affinity_pred))
-
-        return affinity_pred, graph_embedding, ranking_assay_embedding
-
-    def alignfeature(self,bg_lig,bg_prot,node_feats_lig,node_feats_prot):
-        inter_feature = torch.cat((node_feats_lig,node_feats_prot))
-        lig_num,prot_num = bg_lig.batch_num_nodes(),bg_prot.batch_num_nodes()
-        lig_start, prot_start = lig_num.cumsum(0) - lig_num, prot_num.cumsum(0) - prot_num
-        inter_start = lig_start + prot_start
-        for i in range(lig_num.shape[0]):
-            inter_feature[inter_start[i]:inter_start[i]+lig_num[i]] = node_feats_lig[lig_start[i]:lig_start[i]+lig_num[i]]
-            inter_feature[inter_start[i]+lig_num[i]:inter_start[i]+lig_num[i]+prot_num[i]] = node_feats_prot[prot_start[i]:prot_start[i]+prot_num[i]]
-        return inter_feature
-
-class IGN(nn.Module):
-    def __init__(self,config):
-        super(IGN, self).__init__()
-        self.config = config
-        self.pretrain_assay_mlp_share = config.train.pretrain_assay_mlp_share
-        self.pretrain_use_assay_description = config.train.pretrain_use_assay_description
-        self.ligand_conv = layers.ModifiedAttentiveFPGNNV2(config.model.lig_node_dim, config.model.lig_edge_dim, config.model.num_layers, config.model.hidden_dim, config.model.dropout, config.model.jk)
-        self.protein_conv = layers.ModifiedAttentiveFPGNNV2(config.model.pro_node_dim, config.model.pro_edge_dim, config.model.num_layers, config.model.hidden_dim, config.model.dropout, config.model.jk)
-        if config.model.jk == 'concat':
-            self.noncov_graph = layers.DTIConvGraph3Layer(config.model.hidden_dim * (config.model.num_layers + config.model.num_layers) + config.model.inter_edge_dim, config.model.inter_out_dim, config.model.dropout)
-        else:
-            self.noncov_graph = layers.DTIConvGraph3Layer(config.model.hidden_dim * 2 + config.model.inter_edge_dim, config.model.inter_out_dim, config.model.dropout)
-
-        self.FC = layers.FC(config.model.inter_out_dim * 2, config.model.fc_hidden_dim, config.model.dropout, config.model.out_dim)
-        self.readout = layers.ReadsOutLayer(config.model.inter_out_dim, config.model.readout)
-        self.softmax = nn.Softmax(dim=1)
-        if self.pretrain_use_assay_description:
-            print(f'use assay descrption type: {config.data.assay_des_type}')
-            if self.pretrain_assay_mlp_share:
-                self.assay_info_aggre_mlp = layers.FC(config.data.assay_des_dim, config.model.assay_des_fc_hidden_dim,
-                                                  config.model.dropout, config.model.inter_out_dim * 2)
-            else:
-                self.assay_info_aggre_mlp_pointwise = layers.FC(config.data.assay_des_dim, config.model.assay_des_fc_hidden_dim,
-                                                        config.model.dropout, config.model.inter_out_dim * 2)
-                self.assay_info_aggre_mlp_pairwise = layers.FC(config.data.assay_des_dim, config.model.assay_des_fc_hidden_dim,
-                                                        config.model.dropout, config.model.inter_out_dim * 2)
-
-    def forward(self, batch):
-        bg_lig, bg_prot, bg_inter, labels, _, ass_des = batch
-
-        node_feats_lig = self.ligand_conv(bg_lig)
-        node_feats_prot = self.protein_conv(bg_prot)
-        bg_inter.ndata['h'] = self.alignfeature(bg_lig,bg_prot,node_feats_lig,node_feats_prot)
-        bond_feats_inter = self.noncov_graph(bg_inter)
-        graph_embedding = self.readout(bg_inter, bond_feats_inter)
-
-        if self.pretrain_use_assay_description:
-            if self.pretrain_assay_mlp_share:
-                ranking_assay_embedding = self.assay_info_aggre_mlp(ass_des)
-                affinity_pred = self.FC(graph_embedding + ranking_assay_embedding)
-            else:
-                regression_assay_embedding = self.assay_info_aggre_mlp_pointwise(ass_des)
-                affinity_pred = self.FC(graph_embedding + regression_assay_embedding)
-                ranking_assay_embedding = self.assay_info_aggre_mlp_pairwise(ass_des)
-        else:
-            affinity_pred = self.FC(graph_embedding)
-            ranking_assay_embedding = torch.zeros(len(affinity_pred))
-
-        return affinity_pred, graph_embedding, ranking_assay_embedding
-
-    def alignfeature(self,bg_lig,bg_prot,node_feats_lig,node_feats_prot):
-        inter_feature = torch.cat((node_feats_lig,node_feats_prot))
-        lig_num,prot_num = bg_lig.batch_num_nodes(),bg_prot.batch_num_nodes()
-        lig_start, prot_start = lig_num.cumsum(0) - lig_num, prot_num.cumsum(0) - prot_num
-        inter_start = lig_start + prot_start
-        for i in range(lig_num.shape[0]):
-            inter_feature[inter_start[i]:inter_start[i]+lig_num[i]] = node_feats_lig[lig_start[i]:lig_start[i]+lig_num[i]]
-            inter_feature[inter_start[i]+lig_num[i]:inter_start[i]+lig_num[i]+prot_num[i]] = node_feats_prot[prot_start[i]:prot_start[i]+prot_num[i]]
-        return inter_feature
+from MBP import layers, losses
 
 class GNNs(nn.Module):
     def __init__(self, nLigNode, nLigEdge, nLayer, nHid, JK, GNN):
@@ -479,3 +360,121 @@ class Affinity_GNNs_MTL(nn.Module):
         return inter_feature
 
 
+class IGN_basic(nn.Module):
+    def __init__(self,config):
+        super(IGN_basic, self).__init__()
+        self.config = config
+        self.pretrain_assay_mlp_share = config.train.pretrain_assay_mlp_share
+        self.pretrain_use_assay_description = config.train.pretrain_use_assay_description
+        self.graph_conv = layers.ModifiedAttentiveFPGNNV2(config.model.lig_node_dim, config.model.lig_edge_dim, config.model.num_layers, config.model.hidden_dim, config.model.dropout, config.model.jk)
+        if config.model.jk == 'concat':
+            self.noncov_graph = layers.DTIConvGraph3Layer_IGN_basic(config.model.hidden_dim * config.model.num_layers + config.model.inter_edge_dim, config.model.inter_out_dim, config.model.dropout)
+        else:
+            self.noncov_graph = layers.DTIConvGraph3Layer_IGN_basic(config.model.hidden_dim + config.model.inter_edge_dim, config.model.inter_out_dim, config.model.dropout)
+
+        self.FC = layers.FC(config.model.inter_out_dim * 2, config.model.fc_hidden_dim, config.model.dropout, config.model.out_dim)
+        self.readout = layers.ReadsOutLayer(config.model.inter_out_dim, config.model.readout)
+        self.softmax = nn.Softmax(dim=1)
+        if self.pretrain_use_assay_description:
+            print(f'use assay descrption type: {config.data.assay_des_type}')
+            if self.pretrain_assay_mlp_share:
+                self.assay_info_aggre_mlp = layers.FC(config.data.assay_des_dim, config.model.assay_des_fc_hidden_dim,
+                                                  config.model.dropout, config.model.inter_out_dim * 2)
+            else:
+                self.assay_info_aggre_mlp_pointwise = layers.FC(config.data.assay_des_dim, config.model.assay_des_fc_hidden_dim,
+                                                        config.model.dropout, config.model.inter_out_dim * 2)
+                self.assay_info_aggre_mlp_pairwise = layers.FC(config.data.assay_des_dim, config.model.assay_des_fc_hidden_dim,
+                                                        config.model.dropout, config.model.inter_out_dim * 2)
+
+    def forward(self, batch):
+        bg_lig, bg_prot, bg_inter, labels, _, ass_des = batch
+
+        node_feats_lig = self.graph_conv(bg_lig)
+        node_feats_prot = self.graph_conv(bg_prot)
+        bg_inter.ndata['h'] = self.alignfeature(bg_lig,bg_prot,node_feats_lig,node_feats_prot)
+        bond_feats_inter = self.noncov_graph(bg_inter)
+        graph_embedding = self.readout(bg_inter, bond_feats_inter)
+
+        if self.pretrain_use_assay_description:
+            if self.pretrain_assay_mlp_share:
+                ranking_assay_embedding = self.assay_info_aggre_mlp(ass_des)
+                affinity_pred = self.FC(graph_embedding + ranking_assay_embedding)
+            else:
+                regression_assay_embedding = self.assay_info_aggre_mlp_pointwise(ass_des)
+                affinity_pred = self.FC(graph_embedding + regression_assay_embedding)
+                ranking_assay_embedding = self.assay_info_aggre_mlp_pairwise(ass_des)
+        else:
+            affinity_pred = self.FC(graph_embedding)
+            ranking_assay_embedding = torch.zeros(len(affinity_pred))
+
+        return affinity_pred, graph_embedding, ranking_assay_embedding
+
+    def alignfeature(self,bg_lig,bg_prot,node_feats_lig,node_feats_prot):
+        inter_feature = torch.cat((node_feats_lig,node_feats_prot))
+        lig_num,prot_num = bg_lig.batch_num_nodes(),bg_prot.batch_num_nodes()
+        lig_start, prot_start = lig_num.cumsum(0) - lig_num, prot_num.cumsum(0) - prot_num
+        inter_start = lig_start + prot_start
+        for i in range(lig_num.shape[0]):
+            inter_feature[inter_start[i]:inter_start[i]+lig_num[i]] = node_feats_lig[lig_start[i]:lig_start[i]+lig_num[i]]
+            inter_feature[inter_start[i]+lig_num[i]:inter_start[i]+lig_num[i]+prot_num[i]] = node_feats_prot[prot_start[i]:prot_start[i]+prot_num[i]]
+        return inter_feature
+
+class IGN(nn.Module):
+    def __init__(self,config):
+        super(IGN, self).__init__()
+        self.config = config
+        self.pretrain_assay_mlp_share = config.train.pretrain_assay_mlp_share
+        self.pretrain_use_assay_description = config.train.pretrain_use_assay_description
+        self.ligand_conv = layers.ModifiedAttentiveFPGNNV2(config.model.lig_node_dim, config.model.lig_edge_dim, config.model.num_layers, config.model.hidden_dim, config.model.dropout, config.model.jk)
+        self.protein_conv = layers.ModifiedAttentiveFPGNNV2(config.model.pro_node_dim, config.model.pro_edge_dim, config.model.num_layers, config.model.hidden_dim, config.model.dropout, config.model.jk)
+        if config.model.jk == 'concat':
+            self.noncov_graph = layers.DTIConvGraph3Layer(config.model.hidden_dim * (config.model.num_layers + config.model.num_layers) + config.model.inter_edge_dim, config.model.inter_out_dim, config.model.dropout)
+        else:
+            self.noncov_graph = layers.DTIConvGraph3Layer(config.model.hidden_dim * 2 + config.model.inter_edge_dim, config.model.inter_out_dim, config.model.dropout)
+
+        self.FC = layers.FC(config.model.inter_out_dim * 2, config.model.fc_hidden_dim, config.model.dropout, config.model.out_dim)
+        self.readout = layers.ReadsOutLayer(config.model.inter_out_dim, config.model.readout)
+        self.softmax = nn.Softmax(dim=1)
+        if self.pretrain_use_assay_description:
+            print(f'use assay descrption type: {config.data.assay_des_type}')
+            if self.pretrain_assay_mlp_share:
+                self.assay_info_aggre_mlp = layers.FC(config.data.assay_des_dim, config.model.assay_des_fc_hidden_dim,
+                                                  config.model.dropout, config.model.inter_out_dim * 2)
+            else:
+                self.assay_info_aggre_mlp_pointwise = layers.FC(config.data.assay_des_dim, config.model.assay_des_fc_hidden_dim,
+                                                        config.model.dropout, config.model.inter_out_dim * 2)
+                self.assay_info_aggre_mlp_pairwise = layers.FC(config.data.assay_des_dim, config.model.assay_des_fc_hidden_dim,
+                                                        config.model.dropout, config.model.inter_out_dim * 2)
+
+    def forward(self, batch):
+        bg_lig, bg_prot, bg_inter, labels, _, ass_des = batch
+
+        node_feats_lig = self.ligand_conv(bg_lig)
+        node_feats_prot = self.protein_conv(bg_prot)
+        bg_inter.ndata['h'] = self.alignfeature(bg_lig,bg_prot,node_feats_lig,node_feats_prot)
+        bond_feats_inter = self.noncov_graph(bg_inter)
+        graph_embedding = self.readout(bg_inter, bond_feats_inter)
+
+        if self.pretrain_use_assay_description:
+            if self.pretrain_assay_mlp_share:
+                ranking_assay_embedding = self.assay_info_aggre_mlp(ass_des)
+                affinity_pred = self.FC(graph_embedding + ranking_assay_embedding)
+            else:
+                regression_assay_embedding = self.assay_info_aggre_mlp_pointwise(ass_des)
+                affinity_pred = self.FC(graph_embedding + regression_assay_embedding)
+                ranking_assay_embedding = self.assay_info_aggre_mlp_pairwise(ass_des)
+        else:
+            affinity_pred = self.FC(graph_embedding)
+            ranking_assay_embedding = torch.zeros(len(affinity_pred))
+
+        return affinity_pred, graph_embedding, ranking_assay_embedding
+
+    def alignfeature(self,bg_lig,bg_prot,node_feats_lig,node_feats_prot):
+        inter_feature = torch.cat((node_feats_lig,node_feats_prot))
+        lig_num,prot_num = bg_lig.batch_num_nodes(),bg_prot.batch_num_nodes()
+        lig_start, prot_start = lig_num.cumsum(0) - lig_num, prot_num.cumsum(0) - prot_num
+        inter_start = lig_start + prot_start
+        for i in range(lig_num.shape[0]):
+            inter_feature[inter_start[i]:inter_start[i]+lig_num[i]] = node_feats_lig[lig_start[i]:lig_start[i]+lig_num[i]]
+            inter_feature[inter_start[i]+lig_num[i]:inter_start[i]+lig_num[i]+prot_num[i]] = node_feats_prot[prot_start[i]:prot_start[i]+prot_num[i]]
+        return inter_feature

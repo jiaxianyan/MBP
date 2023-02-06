@@ -4,7 +4,7 @@ import torch.nn as nn
 import warnings
 import dgl
 import os
-from UltraFlow import runner, dataset
+from MBP import runner, dataset
 from .utils import get_run_dir
 
 # customize exp lr scheduler with min lr
@@ -54,20 +54,6 @@ def get_optimizer(config, model):
     else:
         raise NotImplementedError('Optimizer not supported: %s' % config.type)
 
-def get_runner(train_data, val_data, test_data, model, optimizer, scheduler, config):
-    if config.model.model_type in ['dbcg_iegmn', 'dbcg_e3gmn','dbcg_coords', 'dbcg_trie3gmn']:
-        return runner.dbcg_runner.IEGMNRunner(train_data, val_data, test_data, model, optimizer, scheduler, config)
-    elif config.model.model_type=='diffbind_ddpm':
-        return runner.diffbind_runner.DiffBindRunner(train_data, val_data, test_data, model, optimizer, scheduler, config)
-    elif config.model.model_type=='link_iegmn':
-        return runner.link_runner.LinkRunner(train_data, val_data, test_data, model, optimizer, scheduler, config)
-    elif config.model.model_type=='pocket_iegmn':
-        return runner.pocket_runner.PocketRunner(train_data, val_data, test_data, model, optimizer, scheduler, config)
-
-def get_twostage_runner(train_data, val_data, test_data, model, link_model, optimizer, scheduler, config):
-    if config.model.model_type=='two_stage_e3gmn':
-        return runner.link_runner.TwoStage_Runner(train_data, val_data, test_data, model, link_model, optimizer, scheduler, config)
-
 def get_dataset(config):
     if config.data.dataset_name == 'chembl_in_pdbbind_smina':
         if config.data.split_type == 'assay_specific':
@@ -91,31 +77,3 @@ def get_finetune_dataset(config):
 
 def get_model(config):
     return globals()[config.model.model_type](config).to(config.train.device)
-
-def get_front_model(config, mode='new'):
-    model = globals()[config.model.model_type](config).to(config.train.device)
-    run_dir = get_run_dir(config)
-    if mode=='old':
-        run_dir = get_run_dir_old(config)
-
-    now = config.test.now
-    run_dir = os.path.join(run_dir, now)
-    load_epoch = config.test.epoch
-    load_checkpoint = run_dir
-
-    epoch = str(load_epoch) if load_epoch is not None else ''
-    checkpoint = os.path.join(load_checkpoint, 'checkpoint%s' % epoch)
-    print("Load checkpoint from %s" % checkpoint)
-    state = torch.load(checkpoint, map_location=config.train.device)
-    model.load_state_dict(state["model"])
-    return model
-
-def repeat_data(data, num_repeat):
-    datas = [copy.deepcopy(data) for i in range(num_repeat)]
-    g_ligs, g_prots, g_inters = list(zip(*datas))
-    return dgl.batch(g_ligs), dgl.batch(g_prots), dgl.batch(g_inters)
-
-def clip_norm(vec, limit, p=2):
-    norm = torch.norm(vec, dim=-1, p=2, keepdim=True)
-    denom = torch.where(norm > limit, limit / norm, torch.ones_like(norm))
-    return vec * denom

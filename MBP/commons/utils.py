@@ -7,10 +7,10 @@ import yaml
 import random
 import torch
 import numpy as np
-# from gpustat import GPUStatCollection
+from gpustat import GPUStatCollection
 import sys
 import time
-# from easydict import EasyDict
+from easydict import EasyDict
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 import torch.multiprocessing as mp
@@ -253,21 +253,3 @@ def get_run_dir(config):
               f'_igmn{config.data.inter_min_neighbors}_igmn{config.data.inter_max_neighbors}' \
               f'_test2{config.data.test_2}'
     return run_dir
-
-def get_esm_layer(esm_model_name):
-    esm_layer = {'esm2_t48_15B_UR50D':48,
-                 'esm2_t36_3B_UR50D':36,
-                 'esm2_t33_650M_UR50D':33,
-                 'esm2_t30_150M_UR50D':30,
-                 'esm2_t12_35M_UR50D':12,
-                 'esm2_t6_8M_UR50D':6,}
-    return esm_layer[esm_model_name]
-
-def get_esm_dim(esm_model_name):
-    esm_dim = {'esm2_t48_15B_UR50D':5120,
-                 'esm2_t36_3B_UR50D':2560,
-                 'esm2_t33_650M_UR50D':1280,
-                 'esm2_t30_150M_UR50D':640,
-                 'esm2_t12_35M_UR50D':480,
-                 'esm2_t6_8M_UR50D':320,}
-    return esm_dim[esm_model_name]
