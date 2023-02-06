@@ -25,7 +25,7 @@ If you want fine-tune our models with PDBbind then:
 2. unzip the directory and place it into `MBP/data` such that you have the path `MBP/data/pdbbind2016_finetune`
 
 If you want test our models with CSAR-HIQ then:
-1. download the independent dataset CSAR-HIQ from [Google](https://drive.google.com/file/d/1NGhylymFfNDLWiLuGBRFtO6U-JfhNmyG/view?usp=share_link)
+1. download the independent dataset CSAR-HIQ from [Google Drive](https://drive.google.com/file/d/1NGhylymFfNDLWiLuGBRFtO6U-JfhNmyG/view?usp=share_link)
 2. unzip the directory and place it into `MBP/data` such that you have the path `MBP/data/csar_test`
 
 ## Pre-training and fine-tuning
