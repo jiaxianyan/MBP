@@ -3,7 +3,7 @@ MBP: Multi-task Bioassay Pre-training for Protein-Ligand Binding Affinity Predic
 
 This is a PyTorch implementation of MBP for the task of predicting protein-ligand binding affinity.
 
-![MBP_framework](./MBP_framework.png)
+![MBP_framework](visualization/MBP_framework.png)
 
 ## Installation
 We provide a script **conda_env.sh** that makes it easy to install these dependencies. You just need to modify several packages according to you cuda version.
