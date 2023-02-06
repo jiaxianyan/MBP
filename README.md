@@ -1,4 +1,6 @@
 # MBP
+MBP: Multi-task Bioassay Pre-training for Protein-Ligand Binding Affinity Prediction
+
 This is a PyTorch implementation of MBP for the task of predicting protein-ligand binding affinity.
 
 ![MBP_framework](./MBP_framework.png)
