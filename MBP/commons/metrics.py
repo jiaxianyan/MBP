@@ -1,4 +1,6 @@
 from scipy import stats
+import torch
+import torch.nn as nn
 import numpy as np
 from math import sqrt, ceil
 from sklearn.linear_model import LinearRegression
@@ -50,3 +52,12 @@ def get_sbap_regression_metric_dict(np_y, np_f):
 
     metrics_dict = {'RMSE': rmse, 'MAE': mae, 'Pearson': pearson, 'Spearman': spearman, 'SD':sd_}
     return metrics_dict
+
+def get_matric_output_str(matric_dict):
+    matric_str = ''
+    for key in matric_dict.keys():
+        if not 'less than' in key:
+            matric_str += '| {}: {:.4f} '.format(key, matric_dict[key])
+        else:
+            matric_str += '| {}: {:.4f}% '.format(key, matric_dict[key])
+    return matric_str

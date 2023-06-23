@@ -118,11 +118,13 @@ class GIN(nn.Module):
         self.JK = JK
 
 
-    def forward(self, g):
+    def forward(self, g, Perturb=None):
         # list of hidden representation at each layer (including input)
         h = g.ndata.pop('h').float()
         hidden_rep = []
         for i in range(self.num_layers - 1):
+            if i == 0 and Perturb is not None:
+                h = h + Perturb
             h = self.ginlayers[i](g, h)
             h = self.batch_norms[i](h)
             h = F.relu(h)

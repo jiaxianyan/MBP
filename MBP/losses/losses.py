@@ -92,7 +92,10 @@ class pairwise_BCE_loss(nn.Module):
         self.config = config
         self.pretrain_use_assay_description = config.train.pretrain_use_assay_description
         self.loss_fn = nn.CrossEntropyLoss(reduce=False)
-        self.relation_mlp = layers.FC(config.model.inter_out_dim * 4, [config.model.inter_out_dim * 2, config.model.inter_out_dim], config.model.dropout, 2)
+        if config.model.readout.startswith('multi_head') and config.model.attn_merge == 'concat':
+            self.relation_mlp = layers.FC(config.model.inter_out_dim * (config.model.num_head + 1) * 2, [config.model.inter_out_dim * 2, config.model.inter_out_dim], config.model.dropout, 2)
+        else:
+            self.relation_mlp = layers.FC(config.model.inter_out_dim * 4, [config.model.inter_out_dim * 2, config.model.inter_out_dim], config.model.dropout, 2)
         self.m = nn.Softmax(dim=1)
 
     @torch.no_grad()

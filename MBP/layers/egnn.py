@@ -103,12 +103,14 @@ class EGNN(nn.Module):
         self.drop = nn.Dropout(dropout)
         self.JK = JK
 
-    def forward(self, g):
+    def forward(self, g, Perturb=None):
         hidden_rep = []
         node_feats = g.ndata.pop('h').float()
         edge_feats = g.edata['e']
         coord_feats = g.ndata['pos']
         for idx, egnn in enumerate(self.egnn_layers):
+            if idx == 0 and Perturb is not  None:
+                node_feats = node_feats + Perturb
             node_feats, coord_feats = egnn(g, node_feats, coord_feats, edge_feats)
             node_feats = self.batch_norms[idx](node_feats)
             node_feats = F.relu(node_feats)

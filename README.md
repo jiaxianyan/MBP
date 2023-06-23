@@ -17,18 +17,38 @@ bash conda_env.sh
 ### Pre-training Dataset: ChEMBL-Dock
 If you want to pre-train our models with ChEMBL-Dock then:
 1. download the pre-training dataset ChEMBL-Dock from [Google Drive](https://drive.google.com/file/d/1qX-xm5TjbQQdTIYupgx5JkRGmLPN-I6p/view?usp=share_link)
-2. unzip the directory and place it into `MBP/data` such that you have the path `MBP/data/chembl_in_pdbbind_smina`
+2. unzip the directory and place it into `MBP/MBP/data` such that you have the path `MBP/MBP/data/chembl_in_pdbbind_smina`
 
 ### Downstream dataset: PDBbind v2016 and CSAR-HIQ
 If you want fine-tune our models with PDBbind then:
 1. download the fine-tune datase PDBbind v2016 from [PDBbind](http://www.pdbbind.org.cn/).
-2. unzip the directory and place it into `MBP/data` such that you have the path `MBP/data/pdbbind2016_finetune`
+2. unzip the directory and place it into `MBP/MBP/data` such that you have the path `MBP/MBP/data/pdbbind2016_finetune`
 
 If you want test our models with CSAR-HIQ then:
 1. download the independent dataset CSAR-HIQ from [Google Drive](https://drive.google.com/file/d/1NGhylymFfNDLWiLuGBRFtO6U-JfhNmyG/view?usp=share_link)
-2. unzip the directory and place it into `MBP/data` such that you have the path `MBP/data/csar_test`
+2. unzip the directory and place it into `MBP/MBP/data` such that you have the path `MBP/MBP/data/csar_test`
 
-## Pre-training and fine-tuning
+
+## Using the provided model weights for evaluation
+### Overall performance on PDBbind
+```
+cp scripts/result_reproduce.py ./
+python3 result_reproduce.py --work_dir=workdir/finetune/pdbbind
+```
+
+### Performance on Transformer-M setting
+```
+cp scripts/result_reproduce.py ./
+python3 result_reproduce.py --work_dir=workdir/finetune/pdbbind
+```
+
+### Performance on TANKbind setting
+```
+cp scripts/result_reproduce.py ./
+python3 result_reproduce.py --work_dir=workdir/finetune/pdbbind
+```
+
+## Retraining MBP
 ### Pre-training on ChEMBL-Dock with MBP
 ```
 cp scripts/pretrain.py ./

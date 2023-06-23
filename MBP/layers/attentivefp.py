@@ -123,10 +123,12 @@ class ModifiedAttentiveFPGNNV2(nn.Module):
         for _ in range(num_layers - 1):
             self.gnn_layers.append(GNNLayer(graph_feat_size, graph_feat_size, dropout))
 
-    def forward(self, g):
-        atom_feats = g.ndata.pop('h').float()
-        bond_feats = g.edata.pop('e')
+    def forward(self, g, Perturb=None):
+        atom_feats = g.ndata['h'].float()
+        bond_feats = g.edata['e']
         node_feats = self.init_context(g, atom_feats, bond_feats)
+        if Perturb is not None:
+            node_feats = node_feats + Perturb
         h_list = [node_feats]
         for gnn in self.gnn_layers:
             node_feats = gnn(g, node_feats)
@@ -207,77 +209,3 @@ class DTIConvGraph3Layer_IGN_basic(nn.Module):
         new_feats = self.grah_conv(bg)
         return self.bn_layer(self.dropout(new_feats))
 
-
-class FC(nn.Module):
-    def __init__(self, d_graph_layer, fc_hidden_dim, dropout, n_tasks):
-        super(FC, self).__init__()
-
-        self.predict = nn.ModuleList()
-        for index,dim in enumerate(fc_hidden_dim):
-            self.predict.append(nn.Linear(d_graph_layer, dim))
-            self.predict.append(nn.Dropout(dropout))
-            self.predict.append(nn.LeakyReLU())
-            self.predict.append(nn.BatchNorm1d(dim))
-            d_graph_layer = dim
-        self.predict.append(nn.Linear(d_graph_layer, n_tasks))
-
-    def forward(self, h):
-        for layer in self.predict:
-            h = layer(h)
-        # return torch.sigmoid(h)
-        return h
-
-class EdgeWeightAndSum(nn.Module):
-    """
-    for normal use, please delete the 'temporary version' line and meanwhile recover the 'normal version'
-    """
-    def __init__(self, in_feats):
-        super(EdgeWeightAndSum, self).__init__()
-        self.in_feats = in_feats
-        self.atom_weighting = nn.Sequential(
-            nn.Linear(in_feats, 1),
-            nn.Tanh()
-        )
-
-    def forward(self, g, edge_feats):
-        with g.local_scope():
-            g.edata['e'] = edge_feats
-            g.edata['w'] = self.atom_weighting(g.edata['e'])
-            # weights = g.edata['w']  # temporary version
-            h_g_sum = dgl.sum_edges(g, 'e', 'w')
-        return h_g_sum  # normal version
-        # return h_g_sum, weights  # temporary version
-
-class ReadsOutLayer(nn.Module):
-    """
-    for normal use, please delete the 'temporary version' line and meanwhile recover the 'normal version'
-    """
-    def __init__(self, in_feats, pooling):
-        super(ReadsOutLayer, self).__init__()
-        self.weight_and_sum = EdgeWeightAndSum(in_feats)
-        self.pooling = pooling
-
-    def forward(self, bg, edge_feats):
-
-        if self.pooling == 'w_sum':
-            h_g_sum_w = self.weight_and_sum(bg, edge_feats)  # normal version
-            # return h_g_sum_w
-
-        # h_g_sum, weights = self.weight_and_sum(bg, edge_feats)  # temporary version
-        with bg.local_scope():
-            bg.edata['e'] = edge_feats
-            h_g_max = dgl.max_edges(bg, 'e')
-            if self.pooling == 'mean':
-                h_g_mean = dgl.mean_edges(bg, 'e')
-                # return h_g_mean
-            elif self.pooling == 'sum':
-                h_g_sum = dgl.sum_edges(bg,'e')
-                # return h_g_sum
-        if self.pooling == 'mean':
-            h_g = torch.cat([h_g_mean, h_g_max], dim=1)
-        elif self.pooling == 'sum':
-            h_g = torch.cat([h_g_sum, h_g_max], dim=1)
-        elif self.pooling == 'w_sum':
-            h_g = torch.cat([h_g_sum_w, h_g_max], dim=1)
-        #
-        return h_g  # normal version

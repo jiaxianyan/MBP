@@ -1,3 +1,4 @@
+import dgl
 import torch
 import torch.nn as nn
 from time import time
@@ -6,9 +7,11 @@ from torch.utils.data import DataLoader
 from MBP import dataset, commons, losses, models
 import numpy as np
 import pandas as pd
+from .utils import flag_sbap
 
 class DefaultRunner(object):
-    def __init__(self,train_set, val_set, test_set, csar_set, model, optimizer, scheduler, config):
+    def __init__(self,train_set, val_set, test_set, csar_set, model, optimizer, scheduler, config,
+                 interact_ablation_model=None):
         self.train_set = train_set
         self.val_set = val_set
         self.test_set = test_set
@@ -31,6 +34,8 @@ class DefaultRunner(object):
         self.finetune_new_affinity_head = config.train.finetune_new_affinity_head
         if self.finetune_new_affinity_head:
             self.get_new_affinity_head()
+
+        self.interact_ablation_model = interact_ablation_model
 
     def save(self, checkpoint, epoch=None, var_list={}):
         state = {
@@ -211,9 +216,22 @@ class DefaultRunner(object):
             if self.device.type == "cuda":
                 batch = self.trans_device(batch)
 
-            (regression_loss_IC50, regression_loss_K), \
-            (affinity_pred_IC50, affinity_pred_K), \
-            (affinity_IC50, affinity_K) = model(batch, ASRP=False)
+            if self.config.train.encoder_ablation != 'interact':
+                (regression_loss_IC50, regression_loss_K), \
+                (affinity_pred_IC50, affinity_pred_K), \
+                (affinity_IC50, affinity_K) = model(batch, ASRP=False)
+            else:
+                node_feats_lig, node_feats_pro = model(batch, ASRP=False)
+                bg_lig, bg_prot, bg_inter, labels, _, ass_des, IC50_f, K_f = batch
+                bg_lig.ndata['h'] = node_feats_lig
+                bg_prot.ndata['h'] = node_feats_pro
+                lig_g_feats = dgl.readout_nodes(bg_lig, 'h', op=self.config.train.interact_ablate_op)
+                pro_g_feats = dgl.readout_nodes(bg_prot, 'h', op=self.config.train.interact_ablate_op)
+                complex_feats = torch.cat([lig_g_feats, pro_g_feats], dim=1)
+
+                (regression_loss_IC50, regression_loss_K), \
+                (affinity_pred_IC50, affinity_pred_K), \
+                (affinity_IC50, affinity_K) = self.interact_ablation_model(complex_feats, labels, IC50_f, K_f)
 
             affinity_pred = torch.cat([affinity_pred_IC50, affinity_pred_K], dim=0)
             affinity = torch.cat([affinity_IC50, affinity_K], dim=0)
@@ -469,22 +487,49 @@ class DefaultRunner(object):
                 if self.device.type == "cuda":
                     batch = self.trans_device(batch)
 
-                (regression_loss_IC50, regression_loss_K), \
-                (affinity_pred_IC50, affinity_pred_K), \
-                (affinity_IC50, affinity_K) = model(batch, ASRP=False)
+                if self.config.train.use_FLAG:
+                    assert self.config.train.encoder_ablation is None
+                    forward = lambda perturb: model(batch, ASRP=False, Perturb=perturb, Perturb_v=self.config.train.FLAG_v)
+                    model_forward = (model, forward)
+                    perturb_shape = (batch[0].number_of_nodes() + batch[1].number_of_nodes(),
+                                     self.config.model.hidden_dim)
 
-                regression_loss = regression_loss_IC50 + regression_loss_K
+                    loss, _ = commons.get_sbap_regression_metric_dict(model_forward, perturb_shape,
+                                        self.config.train.FLAG_step_size,
+                                        self.config.train.FLAG_m,
+                                        self._optimizer, self.device)
+                    batch_losses.append(loss.item())
 
-                if not regression_loss.requires_grad:
-                    raise RuntimeError("loss doesn't require grad")
+                else:
+                    if self.config.train.encoder_ablation != 'interact':
+                        (regression_loss_IC50, regression_loss_K), \
+                        (affinity_pred_IC50, affinity_pred_K), \
+                        (affinity_IC50, affinity_K) = model(batch, ASRP=False)
+                    else:
+                        node_feats_lig, node_feats_pro = model(batch, ASRP=False)
+                        bg_lig, bg_prot, bg_inter, labels, _, ass_des, IC50_f, K_f = batch
+                        bg_lig.ndata['h'] = node_feats_lig
+                        bg_prot.ndata['h'] = node_feats_pro
+                        lig_g_feats = dgl.readout_nodes(bg_lig, 'h', op=self.config.train.interact_ablate_op)
+                        pro_g_feats = dgl.readout_nodes(bg_prot, 'h', op=self.config.train.interact_ablate_op)
+                        complex_feats = torch.cat([lig_g_feats, pro_g_feats], dim=1)
 
-                self._optimizer.zero_grad()
-                regression_loss.backward()
-                self._optimizer.step()
+                        (regression_loss_IC50, regression_loss_K), \
+                        (affinity_pred_IC50, affinity_pred_K), \
+                        (affinity_IC50, affinity_K) = self.interact_ablation_model(complex_feats, labels, IC50_f, K_f)
 
-                batch_losses.append(regression_loss.item())
-                batch_regression_ic50_losses.append(regression_loss_IC50.item())
-                batch_regression_k_losses.append(regression_loss_K.item())
+                    regression_loss = regression_loss_IC50 + regression_loss_K
+
+                    if not regression_loss.requires_grad:
+                        raise RuntimeError("loss doesn't require grad")
+
+                    self._optimizer.zero_grad()
+                    regression_loss.backward()
+                    self._optimizer.step()
+
+                    batch_losses.append(regression_loss.item())
+                    batch_regression_ic50_losses.append(regression_loss_IC50.item())
+                    batch_regression_k_losses.append(regression_loss_K.item())
 
             train_losses.append(sum(batch_losses))
 

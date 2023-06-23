@@ -13,7 +13,11 @@ from rdkit import Chem as Chem
 from rdkit.Chem.rdPartialCharges import ComputeGasteigerCharges
 from rdkit.Chem.rdchem import BondType as BT
 from rdkit.Chem import AllChem
+from Bio.PDB import get_surface, PDBParser
+from Bio.PDB.PDBExceptions import PDBConstructionWarning
 from scipy.special import softmax
+from scipy.spatial.transform import Rotation
+import pandas as pd
 
 BOND_TYPES = {t: i for i, t in enumerate(BT.names.values())}
 BOND_NAMES = {i: t for i, t in enumerate(BT.names.keys())}
@@ -130,7 +134,10 @@ def lig_atom_featurizer_rdmol(mol):
     return torch.tensor(atom_features_list)
 
 def CusBondFeaturizer(bond):
-    return [int(bond.GetBondOrder()) ,int(bond.IsAromatic()), int(bond.IsInRing())]
+    return [int(bond.GetBondOrder()), int(bond.IsAromatic()), int(bond.IsInRing())]
+
+def CusBondFeaturizer_new(bond):
+    return [int(int(bond.GetBondOrder())==1), int(int(bond.GetBondOrder())==2), int(int(bond.GetBondOrder())==3), int(bond.IsAromatic()), int(bond.IsInRing())]
 
 class Featurizer():
     """Calcaulates atomic features for molecules. Features can encode atom type,
@@ -617,7 +624,7 @@ def get_bonded_edges_obmol(pocket):
                 continue
             a2 = natom.GetIdx()
             bond = openbabel.OBAtom.GetBond(natom,atom.OBAtom)
-            bond_type = CusBondFeaturizer(bond)
+            bond_type = CusBondFeaturizer_new(bond)
             edges.append((a1,a2,bond_type))
         edge_l += edges
     edge_l_new = []
@@ -636,61 +643,67 @@ def get_bonded_edges_rdmol(rdmol):
         edge_type += 2 * [BOND_TYPES[bond.GetBondType()]]
     return zip(row,col,edge_type)
 
-def D3_info(a, b, c):
-    # 空间夹角
-    ab = b - a  # 向量ab
-    ac = c - a  # 向量ac
-    cosine_angle = np.dot(ab, ac) / (np.linalg.norm(ab) * np.linalg.norm(ac))
-    cosine_angle = cosine_angle if cosine_angle >= -1.0 else -1.0
-    angle = np.arccos(cosine_angle)
-    # 三角形面积
-    ab_ = np.sqrt(np.sum(ab ** 2))
-    ac_ = np.sqrt(np.sum(ac ** 2))  # 欧式距离
-    area = 0.5 * ab_ * ac_ * np.sin(angle)
-    return np.degrees(angle), area, ac_
 
-def D3_info_cal(nodes_ls, g):
-    if len(nodes_ls) > 2:
-        Angles = []
-        Areas = []
-        Distances = []
-        for node_id in nodes_ls[2:]:
-            angle, area, distance = D3_info(g.ndata['pos'][nodes_ls[0]].numpy(), g.ndata['pos'][nodes_ls[1]].numpy(),
-                                            g.ndata['pos'][node_id].numpy())
-            Angles.append(angle)
-            Areas.append(area)
-            Distances.append(distance)
-        return [np.max(Angles) * 0.01, np.sum(Angles) * 0.01, np.mean(Angles) * 0.01, np.max(Areas), np.sum(Areas),
-                np.mean(Areas),
-                np.max(Distances) * 0.1, np.sum(Distances) * 0.1, np.mean(Distances) * 0.1]
-    else:
-        return [0, 0, 0, 0, 0, 0, 0, 0, 0]
+def read_ligands_chembl_smina_multi_pose(name, valid_ligand_index, dataset_path, ligcut, lig_type='openbabel', top_N=2,
+                                         docking_type='site_specific'):
+    valid_lig_multi_coords_list, valid_lig_features_list, valid_lig_edges_list, valid_lig_node_type_list, valid_index_list = [], [], [], [], []
 
-def bond_feature(g):
-    src_nodes, dst_nodes = g.find_edges(range(g.number_of_edges()))
-    src_nodes, dst_nodes = src_nodes.tolist(), dst_nodes.tolist()
-    neighbors_ls = []
-    for i, src_node in enumerate(src_nodes):
-        tmp = [src_node, dst_nodes[i]]  # the source node id and destination id of an edge
-        neighbors = g.predecessors(src_node).tolist()
-        neighbors.remove(dst_nodes[i])
-        tmp.extend(neighbors)
-        neighbors_ls.append(tmp)
-    D3_info_ls = list(map(partial(D3_info_cal, g=g), neighbors_ls))
-    D3_info_th = torch.tensor(D3_info_ls, dtype=torch.float)
-    # D3_info_th = torch.cat([g.edata['e'], D3_info_th], dim=-1)
-    return D3_info_th
+    for index, valid in enumerate(valid_ligand_index):
+        if docking_type == 'site_specific':
+            lig_paths_mol2 = [os.path.join(dataset_path, name, 'ligand_smina_poses', f'{index}.mol2')]
+        elif docking_type == 'blind':
+            lig_paths_mol2 = [os.path.join(dataset_path, name, 'ligand_smina_poses', f'{index}_blind.mol2')]
+        elif docking_type == 'all':
+            lig_paths_mol2 = [os.path.join(dataset_path, name, 'ligand_smina_poses', f'{index}.mol2')] +\
+                            [os.path.join(dataset_path, name, 'ligand_smina_poses', f'{index}_blind.mol2')]
 
-def read_ligands_chembl_smina(name, valid_ligand_index, dataset_path, ligcut, lig_type='openbabel'):
+        if valid:
+            if lig_type == 'openbabel':
+                lig_multi_coords = []
+                previou_atom_num = -1
+                for lig_path_mol2 in lig_paths_mol2:
+                    m_lig_iter = pybel.readfile('mol2', lig_path_mol2)
+                    c_m_lig = 0
+                    while c_m_lig < top_N:
+                        try:
+                            m_lig = next(m_lig_iter)
+                            lig_coords, lig_features = featurizer.get_features(m_lig)
+                            if previou_atom_num != -1:
+                                assert len(lig_coords) == previou_atom_num
+                            else:
+                                previou_atom_num == len(lig_coords)
+                            lig_edges = get_bonded_edges_obmol(m_lig)
+                            lig_node_type = lig_atom_type_obmol(m_lig)
+                            lig_multi_coords.append(lig_coords)
+                            c_m_lig += 1
+                        except:
+                            print(f'{lig_path_mol2} only has {c_m_lig} poses')
+                            break
+
+                valid_lig_multi_coords_list.append(lig_multi_coords)
+                valid_lig_features_list.append(lig_features)
+                valid_lig_edges_list.append(lig_edges)
+                valid_lig_node_type_list.append(lig_node_type)
+                valid_index_list.append(index)
+
+    return valid_lig_multi_coords_list, valid_lig_features_list, valid_lig_edges_list, valid_lig_node_type_list, valid_index_list
+
+
+def read_ligands_chembl_smina(name, valid_ligand_index, dataset_path, ligcut, lig_type='openbabel',docking_type='site_specific'):
     valid_lig_coords_list, valid_lig_features_list, valid_lig_edges_list, valid_lig_node_type_list, valid_index_list = [], [], [], [], []
 
     for index, valid in enumerate(valid_ligand_index):
-        lig_path_sdf = os.path.join(dataset_path, name, 'ligand_smina_poses', f'{index}_1.sdf')
+        lig_path_mol2 = os.path.join(dataset_path, name, 'ligand_smina_poses', f'{index}.mol2')
+        if docking_type == 'blind':
+            lig_path_mol2 = os.path.join(dataset_path, name, 'ligand_smina_poses', f'{index}_blind.mol2')
         if valid:
             if lig_type == 'openbabel':
-                m_lig = next(pybel.readfile('sdf', lig_path_sdf))
+                try:
+                    m_lig = next(pybel.readfile('mol2', lig_path_mol2))
+                except:
+                    print(lig_path_mol2)
                 lig_coords, lig_features = featurizer.get_features(m_lig)
-                lig_edges = get_bonded_edges_obmol(m_lig) if ligcut is None else None
+                lig_edges = get_bonded_edges_obmol(m_lig)
                 lig_node_type = lig_atom_type_obmol(m_lig)
 
                 valid_lig_coords_list.append(lig_coords)
@@ -699,11 +712,11 @@ def read_ligands_chembl_smina(name, valid_ligand_index, dataset_path, ligcut, li
                 valid_lig_node_type_list.append(lig_node_type)
                 valid_index_list.append(index)
             elif lig_type == 'rdkit':
-                m_lig = read_rdmol(lig_path_sdf)
+                m_lig = read_rdmol(lig_path_mol2)
                 conf = m_lig.GetConformer()
 
                 lig_coords, lig_features = conf.GetPositions(), lig_atom_featurizer_rdmol(m_lig)
-                lig_edges = get_bonded_edges_rdmol(m_lig) if ligcut is None else None
+                lig_edges = get_bonded_edges_rdmol(m_lig)
                 lig_node_type = lig_atom_type_rdmol(m_lig)
 
                 valid_lig_coords_list.append(lig_coords)
@@ -714,12 +727,53 @@ def read_ligands_chembl_smina(name, valid_ligand_index, dataset_path, ligcut, li
 
     return valid_lig_coords_list, valid_lig_features_list, valid_lig_edges_list, valid_lig_node_type_list, valid_index_list
 
+def read_ligands(name, dataset_path, ligcut, lig_type='openbabel'):
+    #########################Read Ligand########################################################
+    lig_path_sdf = os.path.join(dataset_path, name, 'visualize_dir', 'total_vs.sdf')
+    valid_lig_coords_list, valid_lig_features_list, valid_lig_edges_list, valid_lig_node_type_list, valid_index_list = [], [], [], [], []
+    if lig_type == 'openbabel':
+        m_ligs = pybel.readfile('sdf', lig_path_sdf)
+        for index, m_lig in enumerate(m_ligs):
+            try:
+                lig_coords, lig_features = featurizer.get_features(m_lig)
+                lig_edges = get_bonded_edges_obmol(m_lig)
+                lig_node_type = lig_atom_type_obmol(m_lig)
+
+                valid_lig_coords_list.append(lig_coords)
+                valid_lig_features_list.append(lig_features)
+                valid_lig_edges_list.append(lig_edges)
+                valid_lig_node_type_list.append(lig_node_type)
+                valid_index_list.append(index)
+            except:
+                print(f'{index} error')
+    elif lig_type == 'rdkit':
+        supplier = Chem.SDMolSupplier(lig_path_sdf, sanitize=True, removeHs=False)
+        for index, m_lig in enumerate(supplier):
+            try:
+                conf = m_lig.GetConformer()
+                lig_coords, lig_features = conf.GetPositions(), lig_atom_featurizer_rdmol(m_lig)
+                lig_edges = get_bonded_edges_rdmol(m_lig)
+                lig_node_type = lig_atom_type_rdmol(m_lig)
+
+                valid_lig_coords_list.append(lig_coords)
+                valid_lig_features_list.append(lig_features)
+                valid_lig_edges_list.append(lig_edges)
+                valid_lig_node_type_list.append(lig_node_type)
+                valid_index_list.append(index)
+            except:
+                print(f'{index} error')
+
+    return valid_lig_coords_list, valid_lig_features_list, valid_lig_edges_list, valid_lig_node_type_list, valid_index_list
+
 def read_proteins(name, dataset_path, prot_graph_type, protcut):
     #########################Read Protein########################################################
-    prot_valid_chains = parsePDB(os.path.join(dataset_path, name, f'{name}_valid_chains.pdb'))
+    try:
+        prot_valid_chains = parsePDB(os.path.join(dataset_path, name, f'{name}_valid_chains.pdb'))
+    except:
+        raise ValueError(os.path.join(dataset_path, name, f'{name}_valid_chains.pdb'))
     prot_alpha_c = prot_valid_chains.select('calpha')
     alpha_c_coords, c_coords, n_coords = [], [], []
-    writePDB(os.path.join(dataset_path, name, f'{name}_valid_chains.pdb'), prot_valid_chains)
+    # writePDB(os.path.join(dataset_path, name, f'{name}_valid_chains.pdb'), prot_valid_chains)
 
     if prot_graph_type.startswith('atom'):
         prot_path = os.path.join(dataset_path, name, f'{name}_{graph_type_filename[prot_graph_type]}')
@@ -770,14 +824,17 @@ def read_proteins(name, dataset_path, prot_graph_type, protcut):
     return prot_coords_valid, prot_features_valid, prot_edges, prot_node_type, sec_features,\
            np.array(alpha_c_coords), np.array(c_coords), np.array(n_coords),\
 
-def read_molecules(name, dataset_path, prot_graph_type, ligcut, protcut, lig_type='openbabel', chain_cut=5.0):
+
+def read_molecules(name, dataset_path, prot_graph_type, ligcut, protcut, lig_type='openbabel',init_type='redock_init',
+                   chain_cut=5.0, p2rank_base=None, binding_site_type='ligand_center', LAS_mask=True,
+                   keep_hs_before_rdkit_generate=False, rd_gen_maxIters=200):
     #########################Read Ligand########################################################
     lig_path_mol2 = os.path.join(dataset_path, name, f'{name}_ligand.mol2')
     lig_path_sdf = os.path.join(dataset_path, name, f'{name}_ligand.sdf')
     if lig_type == 'openbabel':
         m_lig = next(pybel.readfile('mol2', lig_path_mol2))
         lig_coords, lig_features = featurizer.get_features(m_lig)
-        lig_edges = get_bonded_edges_obmol(m_lig) if ligcut is None else None
+        lig_edges = get_bonded_edges_obmol(m_lig)
         lig_node_type = lig_atom_type_obmol(m_lig)
     elif lig_type == 'rdkit':
         m_lig = read_rdmol(lig_path_sdf, sanitize=True, remove_hs=True)
@@ -786,7 +843,7 @@ def read_molecules(name, dataset_path, prot_graph_type, ligcut, protcut, lig_typ
 
         conf = m_lig.GetConformer()
         lig_coords, lig_features = conf.GetPositions(), lig_atom_featurizer_rdmol(m_lig)
-        lig_edges = get_bonded_edges_rdmol(m_lig) if ligcut is None else None
+        lig_edges = get_bonded_edges_rdmol(m_lig)
         lig_node_type = lig_atom_type_rdmol(m_lig)
 
     #########################Read Protein########################################################
@@ -801,8 +858,11 @@ def read_molecules(name, dataset_path, prot_graph_type, ligcut, protcut, lig_typ
         prot_valid_chains = prot_structure_no_water
 
     prot_valid_pocket = prot_structure_no_water.select('same residue as within 12 of ligand', ligand=lig_coords)
-    prot_alpha_c = prot_valid_chains.select('calpha')
-    prot_pocket_alpha_c = prot_valid_pocket.select('calpha')
+    try:
+        prot_alpha_c = prot_valid_chains.select('calpha')
+        prot_pocket_alpha_c = prot_valid_pocket.select('calpha')
+    except:
+        raise ValueError(f'{name} process pdb error')
     alpha_c_sec_features = None
     prot_pocket_alpha_c_sec_features = None
     alpha_c_coords, c_coords, n_coords = [], [], []
@@ -856,112 +916,15 @@ def read_molecules(name, dataset_path, prot_graph_type, ligcut, protcut, lig_typ
     else:
         raise ValueError("error prot_graph_type")
 
+    binding_site = lig_coords.mean(axis=0)
 
-    return lig_coords, lig_features, lig_edges, lig_node_type, \
+    lig_LAS_mask = None
+
+    return lig_coords, lig_features, lig_edges, lig_node_type, _, \
            prot_coords_valid, prot_features_valid, prot_edges, prot_node_type, sec_features,\
-           np.array(alpha_c_coords), np.array(c_coords), np.array(n_coords)
+           np.array(alpha_c_coords), np.array(c_coords), np.array(n_coords),\
+           binding_site.reshape(1,-1), lig_LAS_mask
 
-def get_lig_graph_equibind(lig_coords, lig_features, lig_node_type, max_neighbors=None, cutoff=5.0):
-
-    num_nodes = lig_coords.shape[0]
-    assert lig_coords.shape[1] == 3
-    distance = spatial.distance_matrix(lig_coords, lig_coords)
-
-    src_list = []
-    dst_list = []
-    dist_list = []
-    mean_norm_list = []
-    for i in range(num_nodes):
-        dst = list(np.where(distance[i, :] < cutoff)[0])
-        dst.remove(i)
-        if max_neighbors != None and len(dst) > max_neighbors:
-            dst = list(np.argsort(distance[i, :]))[1: max_neighbors + 1]  # closest would be self loop
-        if len(dst) == 0:
-            dst = list(np.argsort(distance[i, :]))[1:2]  # closest would be the index i itself > self loop
-            print(
-                f'The lig_radius {cutoff} was too small for one lig atom such that it had no neighbors. So we connected {i} to the closest other lig atom {dst}')
-        assert i not in dst
-        src = [i] * len(dst)
-        src_list.extend(src)
-        dst_list.extend(dst)
-        valid_dist = list(distance[i, dst])
-        dist_list.extend(valid_dist)
-        valid_dist_np = distance[i, dst]
-        sigma = np.array([1., 2., 5., 10., 30.]).reshape((-1, 1))
-        weights = softmax(- valid_dist_np.reshape((1, -1)) ** 2 / sigma, axis=1)  # (sigma_num, neigh_num)
-        assert weights[0].sum() > 1 - 1e-2 and weights[0].sum() < 1.01
-        diff_vecs = lig_coords[src, :] - lig_coords[dst, :]  # (neigh_num, 3)
-        mean_vec = weights.dot(diff_vecs)  # (sigma_num, 3)
-        denominator = weights.dot(np.linalg.norm(diff_vecs, axis=1))  # (sigma_num,)
-        mean_vec_ratio_norm = np.linalg.norm(mean_vec, axis=1) / denominator  # (sigma_num,)
-
-        mean_norm_list.append(mean_vec_ratio_norm)
-    assert len(src_list) == len(dst_list)
-    assert len(dist_list) == len(dst_list)
-    graph = dgl.graph((torch.tensor(src_list), torch.tensor(dst_list)), num_nodes=num_nodes, idtype=torch.int32)
-
-    graph.ndata['h'] = torch.from_numpy(lig_features) if isinstance(lig_features, np.ndarray) else lig_features
-    graph.ndata['node_type'] = lig_node_type  # schnet\mgcn features
-    graph.edata['e'] = distance_featurizer(dist_list, 0.75)  # avg distance = 1.3 So divisor = (4/7)*1.3 = ~0.75
-    graph.ndata['pos'] = torch.from_numpy(np.array(lig_coords).astype(np.float32))
-    graph.ndata['mu_r_norm'] = torch.from_numpy(np.array(mean_norm_list).astype(np.float32))
-
-    return graph
-
-def get_lig_graph(lig_coords,lig_features, lig_edges, lig_node_type, cutoff=None):
-    g_lig = dgl.DGLGraph()
-
-    num_atoms_lig = len(lig_coords)  # number of ligand atom_level
-    g_lig.add_nodes(num_atoms_lig)
-    g_lig.ndata['h'] = torch.from_numpy(lig_features) if isinstance(lig_features, np.ndarray) else lig_features
-    g_lig.ndata['node_type'] = lig_node_type # schnet\mgcn features
-    dis_matrix_lig = spatial.distance_matrix(lig_coords, lig_coords)
-    if cutoff is None:
-        edges = lig_edges
-        src_ls, dst_ls, bond_type = list(zip(*edges))
-        src_ls, dst_ls = np.array(src_ls), np.array(dst_ls)
-    else:
-        node_idx = np.where( (dis_matrix_lig < cutoff) & (dis_matrix_lig!=0) ) # no self-loop
-        src_ls = node_idx[0]
-        dst_ls = node_idx[1]
-    g_lig.add_edges(src_ls, dst_ls)
-    lig_d = torch.tensor(dis_matrix_lig[src_ls, dst_ls], dtype=torch.float).view(-1, 1)
-    g_lig.edata['distance'] = lig_d
-    g_lig.edata['e'] = lig_d * 0.1  # g.edata['e'] ~ (n_bond1+n_bond2) * k
-    g_lig.ndata['pos'] = torch.tensor(lig_coords, dtype=torch.float)
-    D3_info = bond_feature(g_lig)
-    g_lig.edata['e'] = torch.cat([g_lig.edata['e'], D3_info], dim=-1)
-    g_lig.edata['bond_type'] = torch.tensor(bond_type,dtype=torch.int64)
-    # g_lig.ndata.pop('pos')
-    assert not torch.any(torch.isnan(D3_info))
-    return g_lig
-
-def get_prot_atom_graph(prot_coords, prot_features, prot_edges, prot_node_type, cutoff=None):
-    g_prot = dgl.DGLGraph()
-    num_atoms_prot = len(prot_coords)
-    g_prot.add_nodes(num_atoms_prot)
-    g_prot.ndata['h'] = torch.from_numpy(prot_features) if isinstance(prot_features, np.ndarray) else prot_features
-    g_prot.ndata['node_type'] = prot_node_type # schnet\mgcn features
-    dis_matrix_lig = spatial.distance_matrix(prot_coords, prot_coords)
-    if cutoff is None:
-        edges = prot_edges
-        src_ls, dst_ls, bond_type = list(zip(*edges))
-        src_ls, dst_ls = np.array(src_ls), np.array(dst_ls)
-    else:
-        node_idx = np.where( (dis_matrix_lig < cutoff) & (dis_matrix_lig!=0) ) # no self-loop
-        src_ls = node_idx[0]
-        dst_ls = node_idx[1]
-    g_prot.add_edges(src_ls, dst_ls)
-    prot_d = torch.tensor(dis_matrix_lig[src_ls, dst_ls], dtype=torch.float).view(-1, 1)
-    g_prot.edata['distance'] = prot_d
-    g_prot.edata['e'] = prot_d * 0.1  # g.edata['e'] ~ (n_bond1+n_bond2) * k
-    g_prot.ndata['pos'] = torch.tensor(prot_coords, dtype=torch.float)
-    D3_info = bond_feature(g_prot)
-    g_prot.edata['e'] = torch.cat([g_prot.edata['e'], D3_info], dim=-1)
-    g_prot.edata['bond_type'] = torch.tensor(bond_type, dtype=torch.int64)
-    # g_prot.ndata.pop('pos')
-    assert not torch.any(torch.isnan(D3_info))
-    return g_prot
 
 def distance_featurizer(dist_list, divisor) -> torch.Tensor:
     # you want to use a divisor that is close to 4/7 times the average distance that you want to encode
@@ -1069,7 +1032,7 @@ def get_prot_alpha_c_graph_equibind(prot_coords, prot_features, prot_node_type, 
     g_prot.ndata['mu_r_norm'] = torch.from_numpy(np.array(mean_norm_list).astype(np.float32))
     return g_prot
 
-def get_interact_graph_knn(lig_coords,prot_coords,max_neighbor=None,min_neighbor=None,cutoff=None,):
+def get_interact_graph_knn(lig_coords,prot_coords,max_neighbor=None,min_neighbor=None,cutoff=None):
     g_inter = dgl.DGLGraph()
     num_atoms_lig = len(lig_coords)
     num_atoms_prot = len(prot_coords)
@@ -1169,8 +1132,87 @@ def get_interact_graph_knn_v2(lig_coords,prot_coords,max_neighbor=None,min_neigh
     g_inter.edata['d'] = inter_d
     return g_inter
 
-def pack_graph_and_labels(lig_graphs, prot_graphs, inter_graphs, labels):
-    return lig_graphs, prot_graphs, inter_graphs, labels
+def prot_alpha_c_featurizer(Structure):
+    Coords = Structure.getCoords()
+    ResNames = Structure.getResnames()
+    ResIndex = [ResDict.get(ResName,UNKOWN_RES) for ResName in ResNames]
+    ProtFeature = torch.tensor(np.eye(UNKOWN_RES+1)[ResIndex])
+    return Coords, ProtFeature
+
+def prot_residue_type(Structure):
+    ResNames = Structure.getResnames()
+    ResIndex = [ResDict.get(ResName,UNKOWN_RES) for ResName in ResNames]
+    return torch.tensor(ResIndex,dtype=torch.int64)
+
+def read_rdmol_v2(dataset_path, name):
+
+    lig_path_mol2 = os.path.join(dataset_path, name, f'{name}_ligand.mol2')
+    lig_path_sdf = os.path.join(dataset_path, name, f'{name}_ligand.sdf')
+    m_lig = read_rdmol(lig_path_sdf, sanitize=True, remove_hs=True)
+    if m_lig == None:  # read mol2 file if sdf file cannot be sanitized
+        m_lig = read_rdmol(lig_path_mol2, sanitize=True, remove_hs=True)
+    return m_lig
+
+
+def get_lig_graph_equibind(lig_coords, lig_features, lig_edges, lig_node_type, max_neighbors=None, cutoff=5.0):
+
+    num_nodes = lig_coords.shape[0]
+    assert lig_coords.shape[1] == 3
+    distance = spatial.distance_matrix(lig_coords, lig_coords)
+
+    src_list = []
+    dst_list = []
+    dist_list = []
+    mean_norm_list = []
+    for i in range(num_nodes):
+        dst = list(np.where(distance[i, :] < cutoff)[0])
+        dst.remove(i)
+        if max_neighbors != None and len(dst) > max_neighbors:
+            dst = list(np.argsort(distance[i, :]))[1: max_neighbors + 1]  # closest would be self loop
+        if len(dst) == 0:
+            dst = list(np.argsort(distance[i, :]))[1:2]  # closest would be the index i itself > self loop
+            print(
+                f'The lig_radius {cutoff} was too small for one lig atom such that it had no neighbors. So we connected {i} to the closest other lig atom {dst}')
+        assert i not in dst
+        src = [i] * len(dst)
+        src_list.extend(src)
+        dst_list.extend(dst)
+        valid_dist = list(distance[i, dst])
+        dist_list.extend(valid_dist)
+        valid_dist_np = distance[i, dst]
+        sigma = np.array([1., 2., 5., 10., 30.]).reshape((-1, 1))
+        weights = softmax(- valid_dist_np.reshape((1, -1)) ** 2 / sigma, axis=1)  # (sigma_num, neigh_num)
+        assert weights[0].sum() > 1 - 1e-2 and weights[0].sum() < 1.01
+        diff_vecs = lig_coords[src, :] - lig_coords[dst, :]  # (neigh_num, 3)
+        mean_vec = weights.dot(diff_vecs)  # (sigma_num, 3)
+        denominator = weights.dot(np.linalg.norm(diff_vecs, axis=1))  # (sigma_num,)
+        mean_vec_ratio_norm = np.linalg.norm(mean_vec, axis=1) / denominator  # (sigma_num,)
+
+        mean_norm_list.append(mean_vec_ratio_norm)
+    assert len(src_list) == len(dst_list)
+    assert len(dist_list) == len(dst_list)
+    graph = dgl.graph((torch.tensor(src_list), torch.tensor(dst_list)), num_nodes=num_nodes, idtype=torch.int32)
+
+    graph.ndata['h'] = torch.from_numpy(lig_features) if isinstance(lig_features, np.ndarray) else lig_features
+    graph.ndata['node_type'] = lig_node_type  # schnet\mgcn features
+    graph.edata['e'] = distance_featurizer(dist_list, 0.75)  # avg distance = 1.3 So divisor = (4/7)*1.3 = ~0.75
+    graph.ndata['pos'] = torch.from_numpy(np.array(lig_coords).astype(np.float32))
+    graph.ndata['mu_r_norm'] = torch.from_numpy(np.array(mean_norm_list).astype(np.float32))
+
+    if lig_edges is not None:
+        edge_src_dst_2_edge_index = {}
+        for idx, (s, d) in enumerate(zip(src_list, dst_list)):
+            edge_src_dst_2_edge_index[(s, d)] = idx
+        bond_src_ls, bond_dst_ls, bond_type = list(zip(*lig_edges))
+
+        bond_edge_idx = []
+        for bs, bd in zip(bond_src_ls, bond_dst_ls):
+            bond_edge_idx.append(edge_src_dst_2_edge_index[(bs, bd)])
+
+        graph.edata['bond_type'] = torch.zeros(len(src_list), len(bond_type[0]))
+        graph.edata['bond_type'][bond_edge_idx] = torch.tensor(bond_type).to(torch.float32)
+
+    return graph
 
 def read_rdmol(molecule_file, sanitize=False, calc_charges=False, remove_hs=False):
     """Load a molecule from a file of format ``.mol2`` or ``.sdf`` or ``.pdbqt`` or ``.pdb``.
@@ -1238,4 +1280,3 @@ def read_rdmol(molecule_file, sanitize=False, calc_charges=False, remove_hs=Fals
         return None
 
     return mol
-

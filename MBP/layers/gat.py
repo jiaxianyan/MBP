@@ -176,7 +176,7 @@ class GAT(nn.Module):
         for gnn in self.gnn_layers:
             gnn.reset_parameters()
 
-    def forward(self, g):
+    def forward(self, g, Perturb=None):
         """Update node representations.
 
         Parameters
@@ -196,6 +196,12 @@ class GAT(nn.Module):
               hidden_sizes[-1] * num_heads[-1] otherwise.
         """
         feats = g.ndata.pop('h').float()
+        index = 0
+
         for gnn in self.gnn_layers:
+            if index == 0 and Perturb is not None:
+                feats = feats + Perturb
             feats = gnn(g, feats)
+
+            index += 1
         return feats

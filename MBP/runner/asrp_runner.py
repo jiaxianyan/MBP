@@ -233,14 +233,14 @@ class DefaultRunner(object):
 
         num_epochs = self.config.train.pretrain_epochs
 
-        if ddp:
+        if ddp and self.config.train.use_memory_efficient_dataset != 'v1':
             train_sampler = torch.utils.data.distributed.DistributedSampler(self.train_set)
-            dataloader = DataLoader(self.train_set, batch_size=self.config.train.batch_size,
+            dataloader = DataLoader(self.train_set, batch_size=self.config.train.batch_size, drop_last=True,
                                     collate_fn=dataset.collate_affinity_pair_wise,
                                     num_workers=self.config.train.num_workers,
                                     sampler=train_sampler)
         else:
-            dataloader = DataLoader(self.train_set, batch_size=self.config.train.batch_size,
+            dataloader = DataLoader(self.train_set, batch_size=self.config.train.batch_size, drop_last=True,
                                     shuffle=self.config.train.shuffle, collate_fn=dataset.collate_affinity_pair_wise,
                                     num_workers=self.config.train.num_workers)
 
@@ -265,7 +265,7 @@ class DefaultRunner(object):
             batch_losses, batch_regression_losses, batch_ranking_losses = [], [], []
             batch_cnt = 0
 
-            if ddp:
+            if ddp and self.config.train.use_memory_efficient_dataset != 'v1':
                 dataloader.sampler.set_epoch(epoch)
 
             for batch in dataloader:
@@ -277,7 +277,11 @@ class DefaultRunner(object):
 
                 y_pred_num = len(y_pred)
                 assert y_pred_num % 2 == 0
-                regression_loss = self.loss_fn(y_pred[:y_pred_num // 2], batch[-3][:y_pred_num // 2])
+
+                if self.config.train.pairwise_two_tower_regression_loss:
+                    regression_loss = self.loss_fn(y_pred, batch[-3])
+                else:
+                    regression_loss = self.loss_fn(y_pred[:y_pred_num // 2], batch[-3][:y_pred_num // 2])
 
                 ranking_loss, _, _ = self.ranking_fn(x_output, batch[-3], ranking_assay_embedding)
 
@@ -350,14 +354,14 @@ class DefaultRunner(object):
 
         num_epochs = self.config.train.pretrain_epochs
 
-        if ddp:
+        if ddp and self.config.train.use_memory_efficient_dataset != 'v1':
             train_sampler = torch.utils.data.distributed.DistributedSampler(self.train_set)
-            dataloader = DataLoader(self.train_set, batch_size=self.config.train.batch_size,
+            dataloader = DataLoader(self.train_set, batch_size=self.config.train.batch_size, drop_last=True,
                                     collate_fn=dataset.collate_affinity_pair_wise_multi_task,
                                     num_workers=self.config.train.num_workers,
                                     sampler=train_sampler)
         else:
-            dataloader = DataLoader(self.train_set, batch_size=self.config.train.batch_size,
+            dataloader = DataLoader(self.train_set, batch_size=self.config.train.batch_size, drop_last=True,
                                     shuffle=self.config.train.shuffle, collate_fn=dataset.collate_affinity_pair_wise_multi_task,
                                     num_workers=self.config.train.num_workers)
 
@@ -384,7 +388,7 @@ class DefaultRunner(object):
             batch_ranking_ic50_losses, batch_ranking_kd_losses, batch_ranking_ki_losses = [], [], []
             batch_cnt = 0
 
-            if ddp:
+            if ddp and self.config.train.use_memory_efficient_dataset != 'v1':
                 dataloader.sampler.set_epoch(epoch)
 
             for batch in dataloader:
@@ -470,14 +474,14 @@ class DefaultRunner(object):
 
         num_epochs = self.config.train.pretrain_epochs
 
-        if ddp:
+        if ddp and self.config.train.use_memory_efficient_dataset != 'v1':
             train_sampler = torch.utils.data.distributed.DistributedSampler(self.train_set)
-            dataloader = DataLoader(self.train_set, batch_size=self.config.train.batch_size,
+            dataloader = DataLoader(self.train_set, batch_size=self.config.train.batch_size, drop_last=True,
                                     collate_fn=dataset.collate_affinity_pair_wise_multi_task_v2,
                                     num_workers=self.config.train.num_workers,
                                     sampler=train_sampler)
         else:
-            dataloader = DataLoader(self.train_set, batch_size=self.config.train.batch_size,
+            dataloader = DataLoader(self.train_set, batch_size=self.config.train.batch_size, drop_last=True,
                                     shuffle=self.config.train.shuffle, collate_fn=dataset.collate_affinity_pair_wise_multi_task_v2,
                                     num_workers=self.config.train.num_workers)
 
@@ -504,7 +508,7 @@ class DefaultRunner(object):
             batch_ranking_ic50_losses, batch_ranking_k_losses = [], []
             batch_cnt = 0
 
-            if ddp:
+            if ddp and self.config.train.use_memory_efficient_dataset != 'v1':
                 dataloader.sampler.set_epoch(epoch)
 
             for batch in dataloader:
@@ -584,7 +588,7 @@ class DefaultRunner(object):
         train_start = time()
         num_epochs = self.config.train.pretrain_epochs
 
-        if ddp:
+        if ddp and self.config.train.use_memory_efficient_dataset != 'v1':
             train_sampler = torch.utils.data.distributed.DistributedSampler(self.train_set)
             dataloader = DataLoader(self.train_set, batch_size=self.config.train.batch_size,
                                     collate_fn=dataset.collate_pdbbind_affinity,
@@ -614,7 +618,7 @@ class DefaultRunner(object):
             epoch_start = time()
             batch_losses, batch_regression_losses = [], []
 
-            if ddp:
+            if ddp and self.config.train.use_memory_efficient_dataset != 'v1':
                 dataloader.sampler.set_epoch(epoch)
 
             for batch in dataloader:
@@ -689,7 +693,7 @@ class DefaultRunner(object):
         train_start = time()
         num_epochs = self.config.train.pretrain_epochs
 
-        if ddp:
+        if ddp and self.config.train.use_memory_efficient_dataset != 'v1':
             train_sampler = torch.utils.data.distributed.DistributedSampler(self.train_set)
             dataloader = DataLoader(self.train_set, batch_size=self.config.train.batch_size,
                                     collate_fn=dataset.collate_pdbbind_affinity_multi_task,
@@ -719,7 +723,7 @@ class DefaultRunner(object):
             epoch_start = time()
             batch_losses, batch_regression_losses = [], []
             batch_regression_ic50_losses, batch_regression_kd_losses, batch_regression_ki_losses = [], [], []
-            if ddp:
+            if ddp and self.config.train.use_memory_efficient_dataset != 'v1':
                 dataloader.sampler.set_epoch(epoch)
 
             for batch in dataloader:
@@ -783,7 +787,7 @@ class DefaultRunner(object):
         train_start = time()
         num_epochs = self.config.train.pretrain_epochs
 
-        if ddp:
+        if ddp and self.config.train.use_memory_efficient_dataset != 'v1':
             train_sampler = torch.utils.data.distributed.DistributedSampler(self.train_set)
             dataloader = DataLoader(self.train_set, batch_size=self.config.train.batch_size,
                                     collate_fn=dataset.collate_pdbbind_affinity_multi_task_v2,
@@ -813,7 +817,7 @@ class DefaultRunner(object):
             epoch_start = time()
             batch_losses, batch_regression_losses = [], []
             batch_regression_ic50_losses, batch_regression_k_losses = [], []
-            if ddp:
+            if ddp and self.config.train.use_memory_efficient_dataset != 'v1':
                 dataloader.sampler.set_epoch(epoch)
 
             for batch in dataloader:

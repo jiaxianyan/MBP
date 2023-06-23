@@ -1,0 +1,454 @@
+target: Chembl_Rank
+base_path: /apdcephfs/private_jiaxianyan/git/UltraFlow
+root_dir: /apdcephfs/private_jiaxianyan/git/UltraFlow/log
+seed: 2022
+
+train:
+  gpu_memory_need: 2000
+  repeat: 3
+  optimizer:
+    type: Adam
+    lr: 0.001
+    weight_decay: 0.000
+    dropout: 0.0
+  scheduler:
+    type: plateau
+    factor: 0.6
+    # factor: 0.95
+    patience: 10
+    min_lr: 1e-4
+  gpus:
+    - 0
+    - 1
+    - 2
+    - 3
+  resume_train: false
+  #resume_epoch: latest
+  resume_epoch: latest # IC50K ASRP reg reg 03 MTL AttentiveFP Flag correct batch 256 seed 2022
+  resume_now: 2023-04-03_21:24:55
+  batch_size: 64
+  shuffle: true
+  num_workers: 8
+  use_memory_efficient_dataset: v2 # [v1, v2, false] , v1 split dataset, v2 do not prepare graph in advance
+  pretrain_epochs: 100
+  finetune_epochs: 1000
+  early_stop: 70
+  log_interval:
+  eval: true
+  save: true
+  ranking_loss: pair_wise_v2 # [null, pair_wise_v1,pair_wise_v2]
+  ranking_loss_lambda: 1.0
+  pairwise_two_tower_regression_loss: false
+  use_pretrain_model: false
+  pretrain_ranking_loss: pairwise_v2 # [pairwise_v1, pairwise_v2], v1: image deepth prediction, v2: recommend system
+  pretrain_sampling_method: pairwise_v1 # [pointwise, pairwise_v1]
+  pretrain_ranking_loss_lambda: 1.0
+  pretrain_regression_loss_lambda: 0.3
+  pretrain_regression_loss_lambda_degrade_ratio: 1.0
+  pretrain_regression_loss_lambda_degrade_epoch: 1
+  pretrain_use_assay_description: false
+  pretrain_assay_mlp_share: true
+  pretrain_mtl_IC50_lambda: 1.0 # 0.2404, 0.3819
+  pretrain_mtl_Kd_lambda: 1.0 # 0.4957
+  pretrain_mtl_Ki_lambda: 1.0 # 0.2639
+  pretrain_mtl_K_lambda: 1.0 # 0.6181 
+  multi_task: IC50K # [IC50KdKi, IC50K, false]
+  finetune_times: 5
+  finetune_new_affinity_head: false 
+  use_FLAG: false
+  FLAG_step_size: 0.01
+  FLAG_m: 4
+  FLAG_v: v_inter
+
+test:
+  #now: 2023-01-05_20:57:03
+  #epoch: 66
+  #now: 2023-01-07_02:00:41
+  #epoch: 129
+  #now: 2023-01-07_13:50:41
+  #epoch: 87
+  #now: 2023-01-07_22:14:28
+  #epoch: 107 # pointwise_pretrain
+  #now: 2023-01-09_23:17:57
+  #epoch: 63 # pairwise_smaplev1_loss_v1_regression
+  #now: 2023-01-10_11:20:07
+  #epoch: 20 # pointwise_chembl_smina
+  #now: 2023-01-11_18:49:32
+  #epoch: 39 # pw_lsv1_sampv1
+  #now: 2023-01-12_02:05:49
+  #epoch: 29 # pw_lsv1_sampv1_reg
+  #now: 2023-01-12_01:41:19
+  #epoch: 41 # pw_lsv2_sampv1
+  #now: 2023-01-12_02:11:13
+  #epoch: best_loss # pw_lsv2_sampv1_reg
+  #now: 2023-01-12_02:14:41
+  #epoch: 35 # pw_lsv2_sampv1_reg_deg
+  #now: 2023-01-12_02:18:41
+  #epoch: best_loss # pointwise 
+  #now: 2023-01-12_14:53:48
+  #epoch: latest # pw_lsv2_sampv1_reg
+  #now: 2023-01-13_19:42:09
+  #epoch: latest # pointwise_100
+  #now: 2023-01-13_17:10:44
+  #epoch: latest # pw_lsv2_sampv1_reg0.1
+  #now: 2023-01-13_20:24:01
+  #epoch: latest # pw_lsv2_sampv1_reg
+  #now: 2023-01-13_23:45:08
+  #epoch: latest # pw_lsv2_sampv1_reg_deg098
+  #now: 2023-01-14_01:37:03
+  #epoch: latest # pw_lsv2_sampv1_reg_deg003
+  #now: 2023-01-14_22:52:00
+  #epoch: latest # pw_lsv2_sampv1_reg_deg001
+  #now: 2023-01-14_22:43:09
+  #epoch: latest # pw_lsv2_sampv1_reg_deg03
+  #now: 2023-01-14_22:58:01
+  #epoch: latest # pw_lsv1_sampv1
+  #now: 2023-01-14_23:59:19
+  #epoch: latest # pw_lsv2_sampv1_reg_deg097
+  #now: 2023-01-15_00:32:04
+  #epoch: latest # pw_lsv2_sampv1_reg_deg096
+  #now: 2023-01-15_00:56:11
+  #epoch: latest # pw_lsv2_sampv1_reg_deg095
+  #now: 2023-01-15_01:05:33
+  #epoch: latest # pw_lsv2_sampv1_reg_deg099
+  #now: 2023-01-15_01:09:30
+  #epoch: latest # pw_lsv2_sampv1_reg01_GIN
+  #now: 2023-01-16_02:50:27
+  #epoch: latest # pw_lsv2_sampv1_reg01_GAT
+  #now: 2023-01-16_02:56:21
+  #epoch: latest # pw_lsv2_sampv1_reg01_GCN
+  #now: 2023-01-16_02:59:20
+  #epoch: latest # pw_lsv2_sampv1_reg03_GCN
+  #now: 2023-01-17_02:54:28
+  #epoch: latest # pw_lsv2_sampv1_reg01_EGNN
+  #now: 2023-01-16_10:41:20 
+  #epoch: latest # pw_lsv2_sampv1_reg1_GCN
+  #now: 2023-01-17_02:08:52
+  #epoch: latest # pointwise_GCN
+  #now: 2023-01-16_16:17:22
+  #epoch: latest # pointwise_GIN
+  #now: 2023-01-16_16:24:47
+  #epoch: latest # pointwise_GAT
+  #now: 2023-01-16_16:22:16
+  #epoch: latest # pointwise_EGNN
+  #now: 2023-01-16_16:28:39
+  #epoch: latest # pw_lsv2_sampv1_reg_deg098_GCN 
+  #now: 2023-01-17_03:08:31
+  #epoch: latest # pw_lsv2_sampv1_reg_deg099_GCN 
+  #now: 2023-01-17_03:26:00 
+  #epoch: latest # pw_lsv2_sampv1_reg_deg097_GCN 
+  #now: 2023-01-17_03:19:57
+  #epoch: latest # pw_lsv2_sampv1_reg_1_GAT
+  #now: 2023-01-17_10:59:53
+  #epoch: latest # pw_lsv2_sampv1_reg_1_EGNN
+  #now: 2023-01-17_10:49:58
+  #epoch: latest # pw_lsv2_sampv1_reg_1_GIN
+  #now: 2023-01-17_20:25:44
+  #epoch: latest # pw_lsv2_sampv1_reg_03_assay_noshare_cls_IGN
+  #now: 2023-01-18_03:15:54
+  #epoch: latest # pw_lsv2_sampv1_reg_03_assay_share_first_last_avg_IGN
+  #now: 2023-01-18_02:55:27
+  #epoch: latest # pw_lsv2_sampv1_reg_03_assay_share_cls_IGN
+  #now: 2023-01-18_02:53:45
+  #epoch: latest # pw_lsv2_sampv1_reg_03_assay_noshare_first_last_avg_IGN
+  #now: 2023-01-18_03:25:44
+  #epoch: latest # pw_lsv2_sampv1_reg_03_GAT
+  #now: 2023-01-18_03:39:46 
+  #epoch: latest # IGN_Pointwise_KdKi
+  #now: 2023-01-19_15:20:08
+  #epoch: latest # pw_lsv2_sampv1_reg_03_IGN_ASRP_ASSAY_cls_share_KdKi
+  #now: 2023-01-19_16:36:54
+  #epoch: latest # pw_lsv2_sampv1_reg_03_IGN_ASRP_KdKi
+  #now: 2023-01-19_16:35:05
+  #epoch: latest # pw_lsv2_sampv1_reg_03_IGN_ASRP_MTL_KdKi
+  #now: 2023-01-19_20:13:09
+  #epoch: latest # IGN_Pointwise_MTL_KdKi
+  #now: 2023-01-20_00:32:14
+  #epoch: latest # IGN_BioLinkBERT_large_first_last_avg
+  #now: 2023-01-20_03:57:31
+  #epoch: latest # IGN_BioLinkBERT_large_cls
+  #now: 2023-01-20_03:54:29
+  #epoch: latest # IGN_first_last_avg
+  #now: 2023-01-20_03:36:13
+  #epoch: latest # IGN_cls
+  #now: 2023-01-20_03:33:14
+  #epoch: latest # IGN_ASRP_reg1_MTL
+  #now: 2023-01-20_02:26:15
+  #epoch: latest # IGN_ASRP_reg1
+  #now: 2023-01-20_01:00:28
+  #epoch: latest # IGN_BioLinkBERT_large_last2avg
+  #now: 2023-01-20_11:26:29
+  #epoch: latest # IGN_BioLinkBERT_large_last_avg
+  #now: 2023-01-20_16:37:28
+  #epoch: latest # IGN_MTL_new_lambda
+  #now: 2023-01-20_18:14:21
+  #epoch: latest # IGN_ASRP_reg01
+  #now: 2023-01-20_15:58:41
+  #epoch: latest # IGN_ASRP_reg01_MTL
+  #now:
+  #epoch: latest # IGN_ASRP_reg1_decay098
+  #now: 2023-01-20_17:25:17
+  #epoch: latest # IGN_ASRP_reg0
+  #now: 2023-01-20_17:04:29
+  #epoch: latest # IGN_ASRP_reg1_decay097
+  #now: 2023-01-20_17:22:09
+  #epoch: latest # GIN_ASRP_reg03_MTL_bio_cls
+  #now: 2023-01-21_02:54:26
+  #epoch: latest # GIN_pointwise_baseline
+  #now: 2023-01-21_02:57:48
+  #epoch: latest # IGN_ASRP_MTL_new_bio_cls_reg03
+  #now: 2023-01-21_02:40:35
+  #epoch: latest # IGN_ASRP_MTL_new_bio_cls_reg_deg098
+  #now: 2023-01-21_02:37:49
+  #epoch: latest # IGN_ASRP_MTL_new_bio_cls_reg_deg097
+  #now: 2023-01-21_02:30:27
+  #epoch: latest # GCN_ASRP_MTL_new_bio_cls_reg_deg03
+  #now: 2023-01-21_02:51:12
+  #2023-01-20_14:31:13epoch: latest # GCN_pointwise_baseline
+  #now: 2023-01-21_03:00:26
+  #epoch: latest # IGN_IC50KdKi_pointwise_baseline
+  #now: 2023-01-20_14:31:13
+  #epoch: latest # IGN_IC50KdKi_pointwise_MTL_baseline
+  #now: 2023-01-20_15:04:28
+  #epoch: latest # IGN_KdKi_MTL_new_ASRP_reg_deg097
+  #now: 2023-01-21_12:56:41
+  #epoch: latest # IGN_IC50K_MTL
+  #now: 2023-01-21_16:32:41
+  #epoch: latest # IGN_IC50K_MTL_new_lambda
+  #now: 2023-01-21_16:47:33
+  #epoch: latest # IGN_IC50KiKd_ASRP_reg_deg097
+  #now: 2023-01-21_12:31:31
+  #epoch: latest # IGN_IC50K_Pointwise_IC5001_MTL
+  #now: 2023-01-22_20:09:05
+  #epoch: latest # IGN_IC50K_ASRP_reg_deg097_MTL_new_lambda
+  #now: 2023-01-22_00:22:25
+  #epoch: latest # IGN_IC50K_ASRP_reg_deg097_MTL
+  #now: 2023-01-22_00:32:35
+  #epoch: latest # IGN_IC50K_ASRP_reg_deg098_MTL
+  #now: 2023-01-22_14:12:10
+  #epoch: latest # IGN_IC50K_ASRP_reg03_MTL
+  #now: 2023-01-22_14:22:52
+  #finetune_epoch_list: [103, 162, 76] # ASRP_IC50
+  #now: 2023-01-15_22:37:29
+  #finetune_epoch_list: [182, 96, 149] # pointwise_IC50
+  #now: 2023-01-14_17:39:58
+  #finetune_epoch_list: [125, 211] # ASRP_reg03_IC50K_MTL
+  #now: 2023-01-23_19:34:56
+  #finetune_epoch_list: [100_bs_128_lr_0.001] # ASRP_reg03_IC50K_MTL
+  #now: 2023-01-23_19:55:02
+  #epoch: latest # resume training GIN
+  #now: 2023-01-23_23:27:05
+  #epoch: latest # resume training EGNN
+  #now: 2023-01-23_23:31:09
+  #epoch: latest # resume training GCN
+  #now: 2023-01-23_23:33:01
+  #epoch: latest # resume training GAT
+  #now: 2023-01-23_23:35:01
+  #epoch: latest # resume training AttentiveFP ASRP reg 1 MTL
+  #now: 2023-01-24_00:04:18
+  #epoch: latest # IC50K ASRP reg03 MTL GIN
+  #now: 2023-01-24_13:11:09
+  #epoch: latest # IC50K ASRP reg03 MTL GCN
+  #now: 2023-01-24_13:29:10
+  #epoch: latest # IC50K ASRP reg03 MTL GAT
+  #now: 2023-01-24_13:35:25
+  #epoch: latest # IC50K ASRP reg03 MTL EGNN
+  #now: 2023-01-24_13:32:19
+  #epoch: latest # IC50K ASRP reg1 MTL AttentiveFP
+  #now: 2023-01-24_13:40:54
+  #epoch: latest # IC50K ASRP reg0 MTL AttentiveFP
+  #now: 2023-01-24_21:47:05
+  #epoch: latest # IC50K ARRP K reg001 AttentiveFP
+  #now: 2023-01-26_01:06:33
+  #epoch: latest # IC50K ASRP reg deg096 MTL AttentiveFP
+  #now: 2023-01-25_17:19:26
+  #epoch: latest # IC50K ASRP reg deg099 MTL AttentiveFP
+  #now: 2023-01-25_17:00:41
+  #epoch: latest # IC50K ASRP reg01 MTL AttentiveFP
+  #now: 2023-01-25_17:27:33
+  #epoch: latest # IC50K ASRP reg001 MTL AttentiveFP
+  #now: 2023-01-25_17:34:35
+  #epoch: latest # IC50K ASRP K reg deg099 AttentiveFP
+  #now: 2023-01-25_20:11:34
+  #epoch: latest # IC50K ASRP K reg deg096 AttentiveFP
+  #now: 2023-01-25_20:44:22
+  #epoch: latest # IC50K ASRP Pointwise EGNN
+  #now: 2023-01-27_01:48:42
+  #epoch: latest # IC50K ASRP Pointwise GAT
+  #now: 2023-01-27_01:43:00
+  #epoch: latest # IC50K ASRP Pointwise GIN
+  #now: 2023-01-27_01:40:44
+  #epoch: latest # IC50K ASRP Pointwise GCN
+  #now: 2023-01-27_01:29:01
+  #epoch: latest # IC50K ASRP reg deg095 AttentiveFP
+  #now: 2023-01-27_11:48:44
+  #epoch: latest # IC50K ASRP K reg deg095 AttentiveFP
+  #now: 2023-01-27_12:04:37
+  #epoch: latest # IC50K ASRP reg deg098 MTL GCN
+  #now: 2023-01-27_17:46:03
+  #epoch: latest # IC50K ASRP reg deg097 MTL GCN
+  #now: 2023-01-27_17:56:52 
+  #epoch: latest # IC50K ASRP reg deg096 MTL GCN
+  #now: 2023-01-27_18:14:49
+  #epoch: latest # IC50K ASRP reg deg096 MTL GIN
+  #now: 2023-01-27_19:42:01
+  #epoch: latest # IC50K ASRP reg deg097 MTL GIN
+  #now: 2023-01-27_21:08:11
+  #epoch: latest # IC50K ASRP reg deg096 MTL AttentiveFP Flag correct batch 512 seed 43
+  #now: 2023-03-28_23:20:01
+  #epoch: latest # IC50K ASRP reg deg097 MTL AttentiveFP Flag correct batch 512 seed 43
+  #now: 2023-03-30_21:39:55
+  #epoch: latest # IC50K ASRP reg deg098 MTL AttentiveFP Flag correct batch 512 seed 43
+  #now: 2023-03-30_21:46:44
+  #epoch: latest # IC50K ASRP reg deg099 MTL AttentiveFP Flag correct batch 512 seed 43
+  #now: 2023-03-30_21:54:54
+  #epoch: latest # IC50K ASRP reg 03 MTL AttentiveFP Flag correct batch 512 seed 43
+  #now: 2023-03-31_03:57:32
+  #epoch: latest # IC50K ASRP reg deg096 MTL AttentiveFP Flag correct batch 256 seed 2022
+  #now: 2023-04-04_16:31:48
+  #epoch: latest # IC50K ASRP reg deg097 MTL AttentiveFP Flag correct batch 256 seed 2022
+  #now: 2023-04-02_18:52:38
+  #epoch: latest # IC50K ASRP reg deg098 MTL AttentiveFP Flag correct batch 256 seed 2022
+  #now: 2023-04-03_21:29:07
+  #epoch: latest # IC50K ASRP reg deg099 MTL AttentiveFP Flag correct batch 256 seed 2022
+  #now: 2023-04-02_20:44:06
+  #epoch: latest # IC50K ASRP reg reg 03 MTL AttentiveFP Flag correct batch 256 seed 2022
+  #now: 2023-04-03_21:24:55
+  #epoch: latest # IC50K ASRP reg reg 03 MTL AttentiveFP Flag correct batch 256 seed 2022 batch256 resume
+  #now: 2023-04-10_00:08:29
+  #epoch: latest # IC50K ASRP reg reg 03 MTL AttentiveFP Flag correct batch 256 seed 2022 batch512 resume
+  #now: 2023-04-10_00:38:19
+  #epoch: latest # IC50K ASRP reg reg 03 MTL AttentiveFP Flag correct batch 256 seed 2022 top_2
+  #now: 2023-04-09_11:11:49
+  #epoch: latest # IC50K ASRP reg reg 03 MTL AttentiveFP Flag correct batch 256 seed 2022 top_3
+  #now: 2023-04-09_11:01:41
+  #epoch: latest # IC50K ASRP reg reg 03 MTL AttentiveFP Flag correct batch 256 seed 2022 top_5
+  #now: 2023-04-09_13:40:20
+  #epoch: latest # IC50K ASRP reg reg 03 MTL AttentiveFP Flag correct batch 256 seed 2022 4M
+  #now: 2023-04-09_00:38:24
+  #epoch: latest # IC50K ASRP reg reg 03 MTL EGNN Flag correct batch 256 seed 2022
+  #now: 2023-04-06_17:11:06
+  #epoch: latest # IC50K ASRP reg reg 03 MTL GCN Flag correct batch 256 seed 2022
+  #now: 2023-04-06_17:15:53
+  epoch: latest # IC50K ASRP reg deg 096 MTL 3-layer GCN Flag correct batch 256 seed 2022
+  now: 2023-04-09_23:04:26
+  #epoch: latest # IC50K ASRP reg reg 03 MTL GIN Flag correct batch 256 seed 2022
+  #now: 2023-04-10_17:19:32
+  #epoch: latest # IC50K ASRP reg reg 03 MTL GAT Flag correct batch 256 seed 2022
+  #now: 2023-04-10_17:22:42
+  #epoch: latest # IC50K ASRP reg reg 03 MTL AttentiveFp Flag correct batch 256 seed 2022, v2 effi
+  #now: 2023-04-09_03:02:28
+  #epoch: latest # IC50K ASRP reg reg 03 MTL AttentiveFP Flag correct batch 256 seed 2022 memoery_efficient
+  #now: 2023-04-03_19:25:03
+  #epoch: latest # IC50K ASRP reg reg 03 MTL AttentiveFP Flag correct batch 256 seed 2022 double reg
+  #now: 2023-04-10_14:07:38
+  #epoch: latest # IC50K ASRP reg reg 01 MTL AttentiveFP Flag correct batch 256 seed 2022 double reg
+  #now: 2023-04-10_20:11:02
+  #epoch: latest # IC50K ASRP reg reg 1 MTL AttentiveFP Flag correct batch 256 seed 2022
+  #now: 2023-04-04_22:34:44
+  #epoch: latest # IC50K ASRP reg reg 0 MTL AttentiveFP Flag correct batch 256 seed 2022
+  #now: 2023-04-05_13:37:59
+  #epoch: latest # IC50K ASRP rank 0 MTL AttentiveFP Flag correct batch 256 seed 2022
+  #now: 2023-04-06_15:00:40
+  #finetune_epoch_list: [44,142,51] # IGN_basic
+  #now: 2023-01-29_05:42:59
+  #finetune_epoch_list: [72,206,97] # AttentiveFP K ASRP reg deg097 
+  #now: 2023-01-20_23:38:21
+  #finetune_epoch_list: [137,46,98] # AttentiveFP K pointwise 
+  #now: 2023-01-20_04:32:20
+  #finetune_epoch_list: [182,96,149] # IGN IC50 pointwise 
+  #now: 2023-01-14_17:39:58
+  #finetune_epoch_list: [21, 28,152] # IGN IC50 ASRP reg0 
+  #now: 2023-01-15_22:26:14
+  #finetune_epoch_list: [133,74,95] # IGN IC50 ASRP reg0.01
+  #now: 2023-01-15_22:40:26
+  #finetune_epoch_list: [125,178,179] # IGN IC50 ASRP reg0.1
+  #now: 2023-01-14_18:26:02
+  #finetune_epoch_list: [103,162,76] # IGN IC50 ASRP reg0.3
+  #now: 2023-01-15_22:37:29
+  #finetune_epoch_list: [129, 89,278] # IGN IC50 ASRP reg1
+  #now: 2023-01-14_17:52:02
+  #finetune_epoch_list: [211,175,47] # IGN K ASRP reg0
+  #now: 2023-01-20_23:42:33
+  #finetune_epoch_list: [49,96,80] # IGN IC50Kikd pointwise 
+  #now: 2023-01-21_13:57:28
+  #finetune_epoch_list: [63,44,138] # IGN baseline 
+  #now: 2023-01-20_01:46:31
+  #finetune_epoch_list: [137,164,139] # IGN IC50KiKd ASRP
+  #now: 2023-01-29_13:14:16
+  #finetune_epoch_list: [169,93,179] # IGN IC50KiKd MTL
+  #now: 2023-01-27_18:32:50
+
+data:
+  dataset_name: chembl_in_pdbbind_smina # [chembl_in_pdbbind_smina, chembl], chembl_smina: poses are generated by smina, chembl: poses are generated by UltraDock
+  top_N: 1
+  use_ic50: true
+  use_ki: true
+  use_kd: true
+  affinity_relation: '=' # [=, >, all], all: use > and =
+  assay_des_type: BioLinkBERT_large_first_last_avg # [cls, first_last_avg, BioLinkBERT_large_cls, BioLinkBERT_large_first_last_avg, BioLinkBERT_large_last2avg, BioLinkBERT_large_last_avg]
+  assay_des_dim: 1024
+  finetune_dataset_name: pdbbind2016_finetune  #pdbbind2020_no_add_h # pdbbind2016_finetune
+  #finetune_dataset_name: pdbbind2020_no_add_h
+  generalize_dataset_name: csar_test
+  split_type: assay_specific # [vertical, horizontal, assay_specific]
+  drop_last: true
+  dataset_path: ./UltraFlow/data
+  labels_path: ./UltraFlow/data/INDEX_general_PL_data.2016
+  #labels_path: ./UltraFlow/data/INDEX_general_PL_data.2020
+  generalize_labels_path: ./UltraFlow/data/CSAR_NRC_HiQ_Set/SUMMARY_FILES/score_total.txt
+  generalize_csar_test: ./UltraFlow/data/csar_2016
+  vertical_train_names: ./UltraFlow/data/vertical_train_uniprots
+  vertical_val_names: ./UltraFlow/data/vertical_valid_uniprots
+  vertical_test_names: ./UltraFlow/data/vertical_test_uniprots
+  horizontal_train_names: ./UltraFlow/data/horizontal_train.pkl
+  horizontal_val_names: ./UltraFlow/data/horizontal_valid.pkl
+  horizontal_test_names: ./UltraFlow/data/horizontal_test.pkl
+  assay_specific_info: ./UltraFlow/data/vertical_total_smiles_and_uniprots
+  assay_specific_train: ./UltraFlow/data/assay_specific_rank_pretrain_train
+  assay_specific_valid: ./UltraFlow/data/assay_specific_rank_pretrain_valid
+  chemb_smina_asrp_train: ./UltraFlow/data/chembl_smina_asrp_train
+  chemb_smina_asrp_valid: ./UltraFlow/data/chembl_smina_asrp_valid
+  #finetune_train_names: ./UltraFlow/data/pdbbind2016_train_M
+  #finetune_train_names: ./UltraFlow/data/pdbbind_2020_casf_train
+  finetune_train_names: ./UltraFlow/data/pdbbind2016_train
+  #finetune_train_names: ./UltraFlow/data/timesplit_no_lig_overlap_train
+  #finetune_train_names: ./UltraFlow/data/pdbbind2016_general_train
+  #finetune_valid_names: ./UltraFlow/data/pdbbind2016_valid_M
+  finetune_valid_names: ./UltraFlow/data/pdbbind2016_valid
+  #finetune_valid_names: ./UltraFlow/data/pdbbind_2020_casf_valid
+  #finetune_valid_names: ./UltraFlow/data/timesplit_no_lig_overlap_val
+  #finetune_valid_names: ./UltraFlow/data/pdbbind2016_general_valid
+  finetune_test_names: ./UltraFlow/data/pdbbind2016_test
+  #finetune_test_names: ./UltraFlow/data/timesplit_test
+  #finetune_test_names: ./UltraFlow/data/pdbbind_2020_casf_test
+  ligcut: 5.0  # null # 5.0
+  add_chemical_bond_feats: true
+  protcut: 30.0 # null # 30.0
+  intercut: 12.0 # 8 # 12.0
+  chaincut: 10
+  prot_graph_type: residue_complete # atom_pocket # residue_complete
+  n_jobs: 8
+  lig_max_neighbors: null
+  prot_max_neighbors: 10
+  inter_min_neighbors: null
+  inter_max_neighbors: null
+  lig_type: openbabel
+  test_2: false # test for asrp pretraining 
+  test_100: false # test for finetune
+
+model:
+  model_type: Affinity_GNNs # [Affinity_GNNs, IGN, IGN_basic]
+  GNN_type: AttentiveFP # [GCN, GAT, GIN, EGNN, AttentiveFP]
+  out_dim: 1
+  aux_dim: 8
+  num_layers: 3
+  hidden_dim: 128 # 128 #256  
+  inter_out_dim: 128 # 128 # 200 
+  fc_hidden_dim: [128,128,128] # [128, 128, 128] # [200,200,200]
+  assay_des_fc_hidden_dim: [512] # [768, 512]
+  fintune_fc_hidden_dim: [128] # [128] # [200]
+  readout: w_sum
+  dropout: 0.1
+  jk: sum
+

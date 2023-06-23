@@ -54,11 +54,27 @@ def get_optimizer(config, model):
     else:
         raise NotImplementedError('Optimizer not supported: %s' % config.type)
 
-def get_dataset(config):
+def get_optimizer_ablation(config, model, interact_ablation):
+    if config.type == "Adam":
+        return torch.optim.Adam(
+                        filter(lambda p: p.requires_grad, list(model.parameters()) + list(interact_ablation.parameters()) ) ,
+                        lr=config.lr,
+                        weight_decay=config.weight_decay)
+    else:
+        raise NotImplementedError('Optimizer not supported: %s' % config.type)
+
+def get_dataset(config, ddp=False):
     if config.data.dataset_name == 'chembl_in_pdbbind_smina':
         if config.data.split_type == 'assay_specific':
-            train_data, val_data = dataset.load_chembl_smina_assay_specific_rank_pretrain(config)
-            test_data = None
+            if ddp and config.train.use_memory_efficient_dataset == 'v1':
+                train_data, val_data = dataset.load_memoryefficient_ChEMBL_Dock(config)
+                test_data = None
+            elif config.train.use_memory_efficient_dataset == 'v2':
+                train_data, val_data = dataset.load_ChEMBL_Dock_v2(config)
+                test_data = None
+            else:
+                train_data, val_data = dataset.load_ChEMBL_Dock(config)
+                test_data = None
 
     return train_data, val_data, test_data
 
@@ -75,5 +91,24 @@ def get_finetune_dataset(config):
 
     return train_data, val_data, test_data, generalize_csar_data
 
+def get_test_dataset(config):
+    test_data = dataset.pdbbind_finetune(config.data.finetune_test_names, config.data.finetune_dataset_name,
+                                         config.data.labels_path, config)
+
+    generalize_csar_data = dataset.pdbbind_finetune(config.data.generalize_csar_test, config.data.generalize_dataset_name,
+                                         config.data.generalize_labels_path, config)
+
+    return test_data, generalize_csar_data
+
 def get_model(config):
     return globals()[config.model.model_type](config).to(config.train.device)
+
+def repeat_data(data, num_repeat):
+    datas = [copy.deepcopy(data) for i in range(num_repeat)]
+    g_ligs, g_prots, g_inters = list(zip(*datas))
+    return dgl.batch(g_ligs), dgl.batch(g_prots), dgl.batch(g_inters)
+
+def clip_norm(vec, limit, p=2):
+    norm = torch.norm(vec, dim=-1, p=2, keepdim=True)
+    denom = torch.where(norm > limit, limit / norm, torch.ones_like(norm))
+    return vec * denom
