@@ -62,7 +62,7 @@ train:
   interact_ablate_op: min # [max, sum, mean, min]
 
 test:
-  epoch:
+  epoch: latest
   now:
 
 data:
