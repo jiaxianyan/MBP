@@ -23,13 +23,14 @@ if __name__ == '__main__':
     # set run_dir
     now = str(datetime.now()).replace(" ", "_").split(".")[0]
     run_dir = commons.get_run_dir(config)
-    run_dir_now = os.path.join(run_dir,now)
+    run_dir_now = os.path.join(run_dir, now)
     config.train.save_path = run_dir_now
 
-    now = config.test.now
-    run_dir = commons.get_run_dir(config)
-    run_dir = os.path.join(run_dir,now)
-    config.train.pretrain_model_save_path = run_dir
+    if config.train.use_pretrain_model:
+        now = config.test.now
+        run_dir = commons.get_run_dir(config)
+        run_dir = os.path.join(run_dir, now)
+        config.train.pretrain_model_save_path = run_dir
 
     # get logger
     config.logger = commons.get_logger(run_dir_now)

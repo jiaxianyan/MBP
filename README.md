@@ -21,7 +21,7 @@ If you want to pre-train our models with ChEMBL-Dock then:
 
 ### Downstream dataset: PDBbind v2016 and CSAR-HIQ
 If you want fine-tune our models with PDBbind then:
-1. download the fine-tune datase PDBbind v2016 from [PDBbind](http://www.pdbbind.org.cn/).
+1. download the fine-tune dataset PDBbind v2016 from [PDBbind](http://www.pdbbind.org.cn/).
 2. unzip the directory and place it into `MBP/MBP/data` such that you have the path `MBP/MBP/data/pdbbind2016_finetune`
 
 If you want test our models with CSAR-HIQ then:
@@ -30,7 +30,7 @@ If you want test our models with CSAR-HIQ then:
 
 
 ## Using the provided model weights for evaluation
-### Overall performance on PDBbind
+### Overall performance on PDBbind and CSAR-HiQ
 ```
 cp scripts/result_reproduce.py ./
 python3 result_reproduce.py --work_dir=workdir/finetune/pdbbind
@@ -39,13 +39,16 @@ python3 result_reproduce.py --work_dir=workdir/finetune/pdbbind
 ### Performance on Transformer-M setting
 ```
 cp scripts/result_reproduce.py ./
-python3 result_reproduce.py --work_dir=workdir/finetune/pdbbind
+python3 result_reproduce.py --work_dir=workdir/finetune/transformer_m
 ```
 
 ### Performance on TANKbind setting
+1. download the TANKbind dataset PDBbind v2020 from [PDBbind](http://www.pdbbind.org.cn/).
+2. place it into `MBP/MBP/data` and rename it as `pdbbind2020_finetune` such that you have the path `MBP/MBP/data/pdbbind2020_finetune`
+
 ```
 cp scripts/result_reproduce.py ./
-python3 result_reproduce.py --work_dir=workdir/finetune/pdbbind
+python3 result_reproduce.py --work_dir=workdir/finetune/tankbind
 ```
 
 ## Retraining MBP
@@ -56,6 +59,7 @@ python3 pretrain.py --config_path=config/affinity_default.yaml
 ```
 
 ### Fine-tuning on PDBbind and testing on CSAR-HIQ
+After obtaining pretrained model, you should replace the value of test.now parameter in line 66 of `affinity_default.yaml` as the logging dir for finetuning, then:
 ```
 cp scripts/finetune.py ./
 python3 finetune.py --config_path=config/affinity_default.yaml

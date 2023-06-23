@@ -920,7 +920,7 @@ def read_molecules(name, dataset_path, prot_graph_type, ligcut, protcut, lig_typ
 
     lig_LAS_mask = None
 
-    return lig_coords, lig_features, lig_edges, lig_node_type, _, \
+    return lig_coords, lig_features, lig_edges, lig_node_type, None, \
            prot_coords_valid, prot_features_valid, prot_edges, prot_node_type, sec_features,\
            np.array(alpha_c_coords), np.array(c_coords), np.array(n_coords),\
            binding_site.reshape(1,-1), lig_LAS_mask
