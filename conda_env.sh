@@ -1,5 +1,5 @@
-conda install -y pytorch torchvision torchaudio cudatoolkit=11.3 -c pytorch
-conda install -y -c dglteam dgl-cuda11.3
+conda install pytorch==1.9.0 torchvision==0.10.0 torchaudio==0.9.0 cudatoolkit=10.2 -c pytorch
+conda install -y -c dglteam dgl-cuda10.2
 conda install -y -c conda-forge prody
 conda install -y -c conda-forge openbabel
 conda install -y -c rdkit rdkit
