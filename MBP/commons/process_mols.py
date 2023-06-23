@@ -693,15 +693,18 @@ def read_ligands_chembl_smina(name, valid_ligand_index, dataset_path, ligcut, li
     valid_lig_coords_list, valid_lig_features_list, valid_lig_edges_list, valid_lig_node_type_list, valid_index_list = [], [], [], [], []
 
     for index, valid in enumerate(valid_ligand_index):
-        lig_path_mol2 = os.path.join(dataset_path, name, 'ligand_smina_poses', f'{index}.mol2')
-        if docking_type == 'blind':
-            lig_path_mol2 = os.path.join(dataset_path, name, 'ligand_smina_poses', f'{index}_blind.mol2')
+        lig_path_sdf = os.path.join(dataset_path, name, 'ligand_smina_poses', f'{index}_1.sdf')
+        # lig_path_mol2 = os.path.join(dataset_path, name, 'ligand_smina_poses', f'{index}.mol2')
+        # if docking_type == 'blind':
+        #     lig_path_mol2 = os.path.join(dataset_path, name, 'ligand_smina_poses', f'{index}_blind.mol2')
         if valid:
             if lig_type == 'openbabel':
                 try:
-                    m_lig = next(pybel.readfile('mol2', lig_path_mol2))
+                    # m_lig = next(pybel.readfile('mol2', lig_path_mol2))
+                    m_lig = next(pybel.readfile('sdf', lig_path_sdf))
                 except:
-                    print(lig_path_mol2)
+                    # print(lig_path_mol2)
+                    print(lig_path_sdf)
                 lig_coords, lig_features = featurizer.get_features(m_lig)
                 lig_edges = get_bonded_edges_obmol(m_lig)
                 lig_node_type = lig_atom_type_obmol(m_lig)
@@ -712,7 +715,8 @@ def read_ligands_chembl_smina(name, valid_ligand_index, dataset_path, ligcut, li
                 valid_lig_node_type_list.append(lig_node_type)
                 valid_index_list.append(index)
             elif lig_type == 'rdkit':
-                m_lig = read_rdmol(lig_path_mol2)
+                # m_lig = read_rdmol(lig_path_mol2)
+                m_lig = read_rdmol(lig_path_sdf)
                 conf = m_lig.GetConformer()
 
                 lig_coords, lig_features = conf.GetPositions(), lig_atom_featurizer_rdmol(m_lig)
