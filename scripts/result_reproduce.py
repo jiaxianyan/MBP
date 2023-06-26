@@ -54,15 +54,15 @@ if __name__ == '__main__':
         test_Pearsons.append(test_Pearson)
         test_SDs.append(test_SD)
 
-        print(f'PDBbind best metic, RMSE: {RMSE}, MAR: {MAE}, Pearson: {Pearson}, SD: {SD}')
-        print(f'CSAR best metic, RMSE: {test_RMSE}, MAR: {test_MAE}, Pearson: {test_Pearson}, SD: {test_SD}')
+        print(f'PDBbind best metic, RMSE: {RMSE}, MAE: {MAE}, Pearson: {Pearson}, SD: {SD}')
+        print(f'CSAR best metic, RMSE: {test_RMSE}, MAE: {test_MAE}, Pearson: {test_Pearson}, SD: {test_SD}')
 
     print(f'RMSE mean:{np.mean(RMSEs)}, std:{np.std(RMSEs)}')
     print(f'MAE mean:{np.mean(MAEs)}, std:{np.std(MAEs)}')
     print(f'Pearson mean:{np.mean(Pearsons)}, std:{np.std(Pearsons)}')
     print(f'SD mean:{np.mean(SDs)}, std:{np.std(SDs)}')
 
-    print(f'CSRA RMSE mean:{np.mean(test_RMSEs)}, std:{np.std(test_RMSEs)}')
-    print(f'CSRA MAE mean:{np.mean(test_MAEs)}, std:{np.std(test_MAEs)}')
-    print(f'CSRA Pearson mean:{np.mean(test_Pearsons)}, std:{np.std(test_Pearsons)}')
-    print(f'CSRA SD mean:{np.mean(test_SDs)}, std:{np.std(test_SDs)}')
+    print(f'CSAR RMSE mean:{np.mean(test_RMSEs)}, std:{np.std(test_RMSEs)}')
+    print(f'CSAR MAE mean:{np.mean(test_MAEs)}, std:{np.std(test_MAEs)}')
+    print(f'CSAR Pearson mean:{np.mean(test_Pearsons)}, std:{np.std(test_Pearsons)}')
+    print(f'CSAR SD mean:{np.mean(test_SDs)}, std:{np.std(test_SDs)}')
