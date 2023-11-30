@@ -49,7 +49,6 @@ class pair_wise_ranking_loss_v2(nn.Module):
     def __init__(self, config):
         super(pair_wise_ranking_loss_v2, self).__init__()
         self.config = config
-        self.pretrain_use_assay_description = config.train.pretrain_use_assay_description
         self.loss_fn = nn.CrossEntropyLoss()
         self.relation_mlp = layers.FC(config.model.inter_out_dim * 4, [config.model.inter_out_dim * 2, config.model.inter_out_dim], config.model.dropout, 2)
         self.m = nn.Softmax(dim=1)
@@ -71,13 +70,7 @@ class pair_wise_ranking_loss_v2(nn.Module):
 
         relation = self.get_rank_relation(y_A, y_B)
 
-        if self.pretrain_use_assay_description:
-            assay_A, assay_B = assay_des[:batch_size], assay_des[batch_size: ]
-            agg_A = x_A + assay_A
-            agg_B = x_B + assay_B
-            relation_pred = self.relation_mlp(torch.cat([agg_A, agg_B], dim=1))
-        else:
-            relation_pred = self.relation_mlp(torch.cat([x_A,x_B], dim=1))
+        relation_pred = self.relation_mlp(torch.cat([x_A,x_B], dim=1))
 
         ranking_loss = self.loss_fn(relation_pred, relation)
 
@@ -90,7 +83,6 @@ class pairwise_BCE_loss(nn.Module):
     def __init__(self, config):
         super(pairwise_BCE_loss, self).__init__()
         self.config = config
-        self.pretrain_use_assay_description = config.train.pretrain_use_assay_description
         self.loss_fn = nn.CrossEntropyLoss(reduce=False)
         if config.model.readout.startswith('multi_head') and config.model.attn_merge == 'concat':
             self.relation_mlp = layers.FC(config.model.inter_out_dim * (config.model.num_head + 1) * 2, [config.model.inter_out_dim * 2, config.model.inter_out_dim], config.model.dropout, 2)
@@ -115,13 +107,7 @@ class pairwise_BCE_loss(nn.Module):
 
         relation = self.get_rank_relation(y_A, y_B)
 
-        if self.pretrain_use_assay_description:
-            assay_A, assay_B = assay_des[:batch_size], assay_des[batch_size: ]
-            agg_A = x_A + assay_A
-            agg_B = x_B + assay_B
-            relation_pred = self.relation_mlp(torch.cat([agg_A, agg_B], dim=1))
-        else:
-            relation_pred = self.relation_mlp(torch.cat([x_A,x_B], dim=1))
+        relation_pred = self.relation_mlp(torch.cat([x_A,x_B], dim=1))
 
         ranking_loss = self.loss_fn(relation_pred, relation)
 

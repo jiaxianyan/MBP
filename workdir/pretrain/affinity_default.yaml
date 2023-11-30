@@ -23,7 +23,7 @@ train:
     - 2
     - 3
   resume_train: false
-  resume_epoch: latest # IC50K ASRP reg reg 03 MTL AttentiveFP Flag correct batch 256 seed 2022
+  resume_epoch: latest
   resume_now: 2023-04-03_21:24:55
   batch_size: 64
   shuffle: true
@@ -65,11 +65,11 @@ data:
   finetune_train_names: ./MBP/data/pdbbind2016_train
   finetune_valid_names: ./MBP/data/pdbbind2016_valid
   finetune_test_names: ./MBP/data/pdbbind2016_test
-  ligcut: 5.0  # null # 5.0
+  ligcut: 5.0
   add_chemical_bond_feats: true
   use_mean_node_features: false
-  protcut: 30.0 # null # 30.0
-  intercut: 12.0 # 8 # 12.0
+  protcut: 30.0
+  intercut: 12.0
   chaincut: 10
   prot_graph_type: residue_complete # atom_pocket # residue_complete
   n_jobs: 8
@@ -82,15 +82,15 @@ data:
   test_100: false # test for finetune
 
 model:
-  model_type: Affinity_GNNs # [Affinity_GNNs, IGN, IGN_basic]
+  model_type: Affinity_GNNs
   GNN_type: AttentiveFP # [GCN, GAT, GIN, EGNN, AttentiveFP]
   out_dim: 1
   aux_dim: 8
   num_layers: 3
-  hidden_dim: 128 # 128 #256
-  inter_out_dim: 128 # 128 # 200
-  fc_hidden_dim: [128,128,128] # [128, 128, 128] # [200,200,200]
-  fintune_fc_hidden_dim: [128] # [128] # [200]
+  hidden_dim: 128
+  inter_out_dim: 128
+  fc_hidden_dim: [128,128,128]
+  fintune_fc_hidden_dim: [128]
   readout: w_sum
   dropout: 0.1
   jk: sum

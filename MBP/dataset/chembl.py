@@ -11,11 +11,9 @@ import numpy as np
 
 class ChEMBLDock():
     def __init__(self, ligand_representations, prot_graphs, prot_coords, graph_prot_index, df,
-                 assays, test_2, assay_des_type, assay_d=None, multi_task=False,
-                 ligcut=5.0, protcut=8.0, intercut=12.0, lig_max_neighbors=None, prot_max_neighbors=10,
-                 inter_min_neighbors=None, inter_max_neighbors=None, add_chemical_bond_feats=True,
-                 use_mean_node_features=False, poses_pred_affinities=None, pose_select_rules=None,
-                 confidence_threshold=0.3):
+                 assays, test_2, assay_d=None, ligcut=5.0, protcut=8.0, intercut=12.0, lig_max_neighbors=None,
+                 prot_max_neighbors=10, inter_min_neighbors=None, inter_max_neighbors=None, add_chemical_bond_feats=True,
+                 use_mean_node_features=False, poses_pred_affinities=None):
         self.ligand_representations = ligand_representations
         self.prot_graphs = prot_graphs
         self.prot_coords = prot_coords
@@ -55,7 +53,6 @@ class ChEMBLDock():
         self.test_2 = test_2
         self.assay_des_type = assay_des_type
         self.assay_d = assay_d
-        self.multi_task = multi_task
 
         self.ligcut = ligcut
         self.protcut = protcut
@@ -181,10 +178,7 @@ class pdbbind_finetune():
 
         self.lig_type = config.data.lig_type
 
-        self.ranking_loss = config.train.ranking_loss
-
         self.test_100 = config.data.test_100
-        self.multi_task = config.train.multi_task
 
         self.device = config.train.device
         self.n_jobs = config.data.n_jobs
@@ -236,12 +230,7 @@ class pdbbind_finetune():
         Ki_f = deepcopy(self.Ki_flag[item])
         K_f = deepcopy(self.K_flag[item])
 
-        if not self.multi_task:
-            return lig_graph, prot_graph, inter_graph, label, item, assay_des.unsqueeze(dim=0)
-        elif self.multi_task == 'IC50KdKi':
-            return lig_graph, prot_graph, inter_graph, label, item, assay_des.unsqueeze(dim=0), IC50_f, Kd_f, Ki_f
-        elif self.multi_task == 'IC50K':
-            return lig_graph, prot_graph, inter_graph, label, item, assay_des.unsqueeze(dim=0), IC50_f, K_f
+        return lig_graph, prot_graph, inter_graph, label, item, assay_des.unsqueeze(dim=0), IC50_f, K_f
 
     def _load_affinity_type(self):
         names = commons.get_names_from_txt(self.complex_names_path)
@@ -310,14 +299,7 @@ class pdbbind_finetune():
         with open(f'{self.processed_dir}/multi_graphs.pkl','rb') as f:
             self.Dataset = pickle.load(f)
 
-        if self.config.train.pretrain_use_assay_description:
-            train_assay_d = {}
-            with open(f'{self.config.base_path}/{self.config.data.dataset_path}/total_assay_descriptor_{self.config.data.assay_des_type}.pkl','rb') as f:
-                train_assay_des = pickle.load(f)
-            for (assay_id, assay_des) in train_assay_des:
-                train_assay_d[assay_id] = torch.from_numpy(assay_des)
-        else:
-            train_assay_d = None
+        train_assay_d = None
 
         self.lig_graphs = self.Dataset[0]
         self.prot_graphs = self.Dataset[1]

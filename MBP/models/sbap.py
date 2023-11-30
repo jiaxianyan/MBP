@@ -25,13 +25,9 @@ class ASRP_head(nn.Module):
     def __init__(self, config):
         super(ASRP_head, self).__init__()
 
-        self.readout = layers.ReadsOutLayer(config.model.inter_out_dim, config.model.readout, config.model.num_head, config.model.attn_merge)
-        self.pretrain_assay_mlp_share = config.train.pretrain_assay_mlp_share
+        self.readout = layers.ReadsOutLayer(config.model.inter_out_dim, config.model.readout)
 
-        if config.model.readout.startswith('multi_head') and config.model.attn_merge == 'concat':
-            self.FC = layers.FC(config.model.inter_out_dim * (config.model.num_head + 1), config.model.fintune_fc_hidden_dim, config.model.dropout, config.model.out_dim)
-        else:
-            self.FC = layers.FC(config.model.inter_out_dim * 2, config.model.fintune_fc_hidden_dim, config.model.dropout, config.model.out_dim)
+        self.FC = layers.FC(config.model.inter_out_dim * 2, config.model.fintune_fc_hidden_dim, config.model.dropout, config.model.out_dim)
 
         self.regression_loss_fn = nn.MSELoss(reduce=False)
         self.ranking_loss_fn = losses.pairwise_BCE_loss(config)
@@ -84,9 +80,6 @@ class Affinity_GNNs_MTL(nn.Module):
         hidden_dim = config.model.hidden_dim
         jk = config.model.jk
         GNN = config.model.GNN_type
-        self.multi_task = config.train.multi_task
-
-        self.pretrain_assay_mlp_share = config.train.pretrain_assay_mlp_share
 
         self.lig_encoder = GNNs(lig_node_dim, lig_edge_dim, layer_num, hidden_dim, jk, GNN)
         self.pro_encoder = GNNs(pro_node_dim, pro_edge_dim, layer_num, hidden_dim, jk, GNN)

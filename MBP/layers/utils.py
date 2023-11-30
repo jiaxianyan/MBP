@@ -50,7 +50,7 @@ class ReadsOutLayer(nn.Module):
     """
     for normal use, please delete the 'temporary version' line and meanwhile recover the 'normal version'
     """
-    def __init__(self, in_feats, pooling, num_head=None, attn_merge=None):
+    def __init__(self, in_feats, pooling):
         super(ReadsOutLayer, self).__init__()
         self.pooling = pooling
         self.weight_and_sum = EdgeWeightAndSum(in_feats)

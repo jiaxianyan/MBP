@@ -278,12 +278,11 @@ def load_ChEMBL_Dock(config):
         SelectData(ligand_representations, graph_prot_index, df_info, poses_affinities, train_assay)
 
     train_data = ChEMBLDock(ligand_representations_train, prot_graphs, prot_coords,
-                            graph_prot_index_train, df_train, train_assay, config.data.test_2,
-                            config.data.assay_des_type, train_assay_d, config.train.multi_task,
+                            graph_prot_index_train, df_train, train_assay, config.data.test_2, train_assay_d,
                             config.data.ligcut, config.data.protcut, config.data.intercut,
                             config.data.lig_max_neighbors, config.data.prot_max_neighbors,
                             config.data.inter_min_neighbors, config.data.inter_max_neighbors,
                             config.data.add_chemical_bond_feats, config.data.use_mean_node_features,
-                            poses_affinities_train, config.data.confidence_threshold)
+                            poses_affinities_train)
 
     return train_data, None

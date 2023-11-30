@@ -15,7 +15,7 @@ def reproduce_result(config, test_set, model, device):
     """
 
     dataloader = DataLoader(test_set, batch_size=config.train.batch_size,
-                            shuffle=False, collate_fn=dataset.collate_pdbbind_affinity_multi_task_v2,
+                            shuffle=False, collate_fn=dataset.collate_finetune,
                             num_workers=config.train.num_workers)
     y_preds, y_preds_IC50, y_preds_K = torch.tensor([]).to(device), torch.tensor([]).to(device), torch.tensor([]).to(device)
     y, y_IC50, y_K = torch.tensor([]).to(device), torch.tensor([]).to(device), torch.tensor([]).to(device)

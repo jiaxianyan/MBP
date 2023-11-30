@@ -54,8 +54,13 @@ python3 result_reproduce.py --work_dir=workdir/finetune/tankbind
 ## Retraining MBP
 ### Pre-training on ChEMBL-Dock with MBP
 ```
+# training with single GPU
 cp scripts/pretrain.py ./
 python3 pretrain.py --config_path=config/affinity_default.yaml
+
+# DDP training with multi-GPUs
+cp scripts/pretrain_ddp.py ./
+CUDA_VISIBLE_DEVICES="YOUR_GPU_IDS" python3 -m torch.distributed.launch --nproc_per_node=NUM_GPUS_YOU_HAVE pretrain_ddp.py --config_path=config/affinity_default.yaml
 ```
 
 ### Fine-tuning on PDBbind and testing on CSAR-HIQ
