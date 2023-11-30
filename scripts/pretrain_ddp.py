@@ -51,10 +51,7 @@ if __name__ == '__main__':
     config.model.inter_edge_dim = train_data.inter_edge_dim
 
     # get model
-    if config.train.multi_task:
-        model = globals()[config.model.model_type+'_MTL'](config).to(config.train.device)
-    else:
-        model = globals()[config.model.model_type](config).to(config.train.device)
+    model = globals()[config.model.model_type+'_MTL'](config).to(config.train.device)
 
     if config.train.resume_train and dist.get_rank() == 0:
         checkpoint = os.path.join(os.path.join(run_dir, config.train.resume_now), 'checkpoint%s' % config.train.resume_epoch)

@@ -39,10 +39,7 @@ if __name__ == '__main__':
     config.model.inter_edge_dim = train_data.inter_edge_dim
 
     # get model
-    if config.train.multi_task:
-        model = globals()[config.model.model_type+'_MTL'](config).to(config.train.device)
-    else:
-        model = globals()[config.model.model_type](config).to(config.train.device)
+    model = globals()[config.model.model_type+'_MTL'](config).to(config.train.device)
 
     # get optimizer
     optimizer = commons.get_optimizer(config.train.optimizer, model)

@@ -47,23 +47,13 @@ if __name__ == '__main__':
 
     RMSEs, MAEs, Pearsons, Spearmans, SDs = [], [], [], [], []
     test_RMSEs, test_MAEs, test_Pearsons, test_Spearmans, test_SDs = [], [], [], [], []
+
     for i in range(config.train.finetune_times):
         # get model
-        if config.train.multi_task:
-            model = globals()[config.model.model_type + '_MTL'](config).to(config.train.device)
-        else:
-            model = globals()[config.model.model_type](config).to(config.train.device)
+        model = globals()[config.model.model_type](config).to(config.train.device)
 
-        if config.train.encoder_ablation == 'interact':
-            interact_ablation_model = interact_ablation(config).to(config.train.device)
-            print('trainable params in interact abalation model: {:.2f}M'.format(
-                sum(p.numel() for p in interact_ablation_model.parameters() if p.requires_grad) / 1e6))
-            # get optimizer
-            optimizer = commons.get_optimizer_ablation(config.train.optimizer, model, interact_ablation_model)
-        else:
-            interact_ablation_model = None
-            # get optimizer
-            optimizer = commons.get_optimizer(config.train.optimizer, model)
+        # get optimizer
+        optimizer = commons.get_optimizer(config.train.optimizer, model)
 
         # get scheduler
         scheduler = commons.get_scheduler(config.train.scheduler, optimizer)
@@ -83,26 +73,14 @@ if __name__ == '__main__':
         os.system(cmd)
 
         # test before fintune
-        if not config.train.multi_task:
-            RMSE, MAE, SD, Pearson = solver.evaluate('test', verbose=1)
-            test_RMSE, test_MAE, test_SD, test_Pearson = solver.evaluate('csar', verbose=1)
-        elif config.train.multi_task == 'IC50KdKi':
-            RMSE, MAE, SD, Pearson = solver.evaluate_mtl('test', verbose=1)
-            test_RMSE, test_MAE, test_SD, test_Pearson = solver.evaluate_mtl('csar', verbose=1)
-        elif config.train.multi_task == 'IC50K':
-            RMSE, MAE, SD, Pearson = solver.evaluate_mtl_v2('test', verbose=1)
-            test_RMSE, test_MAE, test_SD, test_Pearson = solver.evaluate_mtl_v2('csar', verbose=1)
+        RMSE, MAE, SD, Pearson = solver.evaluate_mtl_v2('test', verbose=1)
+        test_RMSE, test_MAE, test_SD, test_Pearson = solver.evaluate_mtl_v2('csar', verbose=1)
 
         # train
         RMSE, MAE, SD, Pearson = solver.train(repeat_index=i)
 
         # csar_test
-        if not config.train.multi_task:
-            test_RMSE, test_MAE, test_SD, test_Pearson = solver.evaluate('csar', verbose=1)
-        elif config.train.multi_task == 'IC50KdKi':
-            test_RMSE, test_MAE, test_SD, test_Pearson = solver.evaluate_mtl('csar', verbose=1)
-        elif config.train.multi_task == 'IC50K':
-            test_RMSE, test_MAE, test_SD, test_Pearson = solver.evaluate_mtl_v2('csar', verbose=1)
+        test_RMSE, test_MAE, test_SD, test_Pearson = solver.evaluate_mtl_v2('csar', verbose=1)
 
         RMSEs.append(RMSE)
         MAEs.append(MAE)
@@ -117,13 +95,10 @@ if __name__ == '__main__':
         print(f'PDBbind best metic, RMSE: {RMSE}, MAR: {MAE}, Pearson: {Pearson}, SD: {SD}')
         print(f'CSAR best metic, RMSE: {test_RMSE}, MAR: {test_MAE}, Pearson: {test_Pearson}, SD: {test_SD}')
 
-
-
     print(f'RMSE mean:{np.mean(RMSEs)}, std:{np.std(RMSEs)}')
     print(f'MAE mean:{np.mean(MAEs)}, std:{np.std(MAEs)}')
     print(f'Pearson mean:{np.mean(Pearsons)}, std:{np.std(Pearsons)}')
     print(f'SD mean:{np.mean(SDs)}, std:{np.std(SDs)}')
-
 
     print(f'CSRA RMSE mean:{np.mean(test_RMSEs)}, std:{np.std(test_RMSEs)}')
     print(f'CSRA MAE mean:{np.mean(test_MAEs)}, std:{np.std(test_MAEs)}')

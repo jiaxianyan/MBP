@@ -9,202 +9,7 @@ import random
 from math import log
 import numpy as np
 
-class ChEMBL_Dock_PairWise():
-    def __init__(self, lig_graphs, prot_graphs, inter_graphs, graph_prot_index, df,
-                 assays, test_2, assay_des_type, assay_d=None, multi_task=False):
-        self.lig_graphs = lig_graphs
-        self.prot_graphs = prot_graphs
-        self.inter_graphs = inter_graphs
-        self.labels = torch.tensor([-log(float(x) * 1e-9, 10) for x in df['STANDARD_VALUE (nM)'].values], dtype=torch.float)
-        self.graph_prot_index = graph_prot_index
-        self.df = df
-
-        assay_to_index = defaultdict(list)
-        for idx, a in enumerate(df['ASSAY_ID'].values):
-            assay_to_index[a].append(idx)
-
-        IC50_flag = (df['STANDARD_TYPE'] == 'IC50').values.tolist()
-        Kd_flag = (df['STANDARD_TYPE'] == 'Kd').values.tolist()
-        Ki_flag = (df['STANDARD_TYPE'] == 'Ki').values.tolist()
-
-        K_flag = []
-        for kd, ki in zip(Kd_flag, Ki_flag):
-            if kd or ki:
-                K_flag.append(True)
-            else:
-                K_flag.append(False)
-        K_flag = K_flag
-
-        print(f'num of IC50: {sum(IC50_flag)}')
-        print(f'num of Kd: {sum(Kd_flag)}')
-        print(f'num of Ki: {sum(Ki_flag)}')
-        print(f'num of K: {sum(K_flag)}')
-
-        self.assay_to_index = assay_to_index
-        self.IC50_flag = IC50_flag
-        self.Kd_flag = Kd_flag
-        self.Ki_flag = Ki_flag
-        self.K_flag = K_flag
-
-        self.assays = assays
-        self.test_2 = test_2
-        self.assay_des_type = assay_des_type
-        self.assay_d = assay_d
-        self.multi_task = multi_task
-
-        # select data according to assay ids
-        # self.select_data(index_flag, lig_graphs, prot_graphs, inter_graphs, labels, graph_prot_index)
-        self._load_node_feats_dim()
-
-        print(f'num of data in dataset: {len(self.df)}')
-
-    def __len__(self):
-        return len(self.labels)
-
-    def __getitem__(self, item):
-        item_pw = self.get_pair_wise_item(item)
-
-        lig_graph, prot_graph, inter_graph, label, item, IC50_f, Kd_f, Ki_f, K_f = self.get_item_data(item)
-        lig_graph_2, prot_graph_2, inter_graph_2, label_2, item_2, IC50_f2, Kd_f2, Ki_f2, K_f2 = self.get_item_data(item_pw)
-
-        assay_des = self.get_item_assay_emb(item)
-
-        if not self.multi_task:
-            return lig_graph, prot_graph, inter_graph, label, item, assay_des.unsqueeze(dim=0),\
-                   lig_graph_2, prot_graph_2, inter_graph_2, label_2, item_2, assay_des.unsqueeze(dim=0)
-        elif self.multi_task == 'IC50KdKi':
-            return lig_graph, prot_graph, inter_graph, label, item, assay_des.unsqueeze(dim=0),\
-                   IC50_f, Kd_f, Ki_f, \
-                   lig_graph_2, prot_graph_2, inter_graph_2, label_2, item_2, assay_des.unsqueeze(dim=0),\
-                   IC50_f2, Kd_f2, Ki_f2
-        elif self.multi_task == 'IC50K':
-            return lig_graph, prot_graph, inter_graph, label, item, assay_des.unsqueeze(dim=0),\
-                   IC50_f, K_f, \
-                   lig_graph_2, prot_graph_2, inter_graph_2, label_2, item_2, assay_des.unsqueeze(dim=0),\
-                   IC50_f2, K_f2
-
-    def get_item_assay_emb(self, item):
-        assay_id = self.df['ASSAY_ID'].values[item]
-
-        if self.assay_d is not None:
-            assay_des = self.assay_d[assay_id]
-        else:
-            assay_des = torch.zeros(0)
-
-        return assay_des
-
-    def get_item_data(self, item):
-        prot_graph_index = self.graph_prot_index[item]
-        prot_graph = deepcopy(self.prot_graphs[prot_graph_index])
-
-        if isinstance(self.lig_graphs[item], list):
-            conf_index = random.randint(0, len(self.lig_graphs[item]) - 1)
-            lig_graph = deepcopy(self.lig_graphs[item][conf_index])
-            inter_graph = deepcopy(self.inter_graphs[item][conf_index])
-        else:
-            lig_graph = deepcopy(self.lig_graphs[item])
-            inter_graph = deepcopy(self.inter_graphs[item])
-
-        label = deepcopy(self.labels[item])
-
-        IC50_f = deepcopy(self.IC50_flag[item])
-        Kd_f = deepcopy(self.Kd_flag[item])
-        Ki_f = deepcopy(self.Ki_flag[item])
-        K_f = deepcopy(self.K_flag[item])
-
-        inter_d = inter_graph.edata['d']
-        squared_distance = inter_d ** 2
-        all_sigmas_dist = [1.5 ** x for x in range(15)]
-        prot_square_distance_scale = 10.0
-        x_rel_mag = torch.cat([torch.exp(-(squared_distance / prot_square_distance_scale) / sigma) for sigma in
-                               all_sigmas_dist], dim=-1)
-        inter_graph.edata['e'] = x_rel_mag
-
-        return lig_graph, prot_graph, inter_graph, label, item, IC50_f, Kd_f, Ki_f, K_f
-
-    def get_pair_wise_item(self, item):
-        assay_id = self.df['ASSAY_ID'].values[item]
-        global_indexs = deepcopy(self.assay_to_index[assay_id])
-
-        random.shuffle(global_indexs)
-        sample_flag = False
-        for sample_item in global_indexs:
-            if (sample_item != item) and (
-                    (self.IC50_flag[sample_item] == self.IC50_flag[item]) and (self.Kd_flag[sample_item] == self.Kd_flag[item]) and (self.Ki_flag[sample_item] == self.Ki_flag[item]) ):
-                sample_flag = True
-                break
-
-        if not sample_flag:
-            sample_item = item
-
-        return sample_item
-
-    def _load_node_feats_dim(self):
-        lig_graph, prot_graph, inter_graph, label, item, IC50_f, Kd_f, Ki_f, K_f = self.get_item_data(0)
-        self.lig_node_dim = lig_graph.ndata['h'].shape[1]
-        self.lig_edge_dim = lig_graph.edata['e'].shape[1]
-        self.pro_node_dim = prot_graph.ndata['h'].shape[1]
-        self.pro_edge_dim = prot_graph.edata['e'].shape[1]
-        self.inter_edge_dim = 15
-
-class ChEMBL_Dock_PointWise(ChEMBL_Dock_PairWise):
-    def __init__(self, lig_graphs, prot_graphs, inter_graphs, graph_prot_index, df,
-                 assays, test_2, assay_des_type, assay_d=None, multi_task=False):
-        super(ChEMBL_Dock_PointWise, self).__init__(lig_graphs, prot_graphs, inter_graphs, graph_prot_index, df,
-                                                    assays, test_2, assay_des_type, assay_d, multi_task)
-
-    def __getitem__(self, item):
-        lig_graph, prot_graph, inter_graph, label, item, IC50_f, Kd_f, Ki_f, K_f = self.get_item_data(item)
-        assay_des = self.get_item_assay_emb(item)
-
-        if not self.multi_task:
-            return lig_graph, prot_graph, inter_graph, label, item, assay_des.unsqueeze(dim=0)
-        elif self.multi_task == 'IC50KdKi':
-            return lig_graph, prot_graph, inter_graph, label, item, assay_des.unsqueeze(dim=0), IC50_f, Kd_f, Ki_f
-        elif self.multi_task == 'IC50K':
-            return lig_graph, prot_graph, inter_graph, label, item, assay_des.unsqueeze(dim=0), IC50_f, K_f
-
-class ChEMBL_Dock_Valid(ChEMBL_Dock_PairWise):
-    def __init__(self, lig_graphs, prot_graphs, inter_graphs, graph_prot_index, df,
-                 assays, test_2, assay_des_type, assay_d=None, multi_task=False):
-
-        super(ChEMBL_Dock_Valid, self).__init__(lig_graphs, prot_graphs, inter_graphs, graph_prot_index, df,
-                                                assays, test_2, assay_des_type, assay_d, multi_task)
-
-        num_of_assay = len(self.df['ASSAY_ID'].unique())
-        print(f'num of assay in valid dataset: {num_of_assay}')
-
-    def __len__(self):
-        return len(self.df['ASSAY_ID'].unique())
-
-    def __getitem__(self, item):
-        assay_id = self.assays[item]
-        assay_des = self.assay_d[assay_id]
-        global_indexs = self.assay_to_index[assay_id]
-        g_ligs, g_prots, g_inters, labels, items, asssy_dess = [], [], [], [], [], []
-        IC50_f_list, Kd_f_list, Ki_f_list = [], [], []
-        for idx in global_indexs:
-            lig_graph, prot_graph, inter_graph, label, item, IC50_f, Kd_f, Ki_f, K_f = self.get_item_data(idx)
-            g_ligs.append(lig_graph)
-            g_prots.append(prot_graph)
-            g_inters.append(inter_graph)
-            labels.append(label)
-            items.append(item)
-            asssy_dess.append(assay_des.unsqueeze(dim=0))
-            IC50_f_list.append(IC50_f)
-            Kd_f_list.append(Kd_f)
-            Ki_f_list.append(Ki_f)
-
-        if not self.multi_task:
-            return dgl.batch(g_ligs), dgl.batch(g_prots), dgl.batch(g_inters),\
-                   torch.unsqueeze(torch.stack(labels, dim=0), dim=-1), list(items),\
-                   torch.cat(asssy_dess, dim=0)
-        else:
-            return dgl.batch(g_ligs), dgl.batch(g_prots), dgl.batch(g_inters),\
-                   torch.unsqueeze(torch.stack(labels, dim=0), dim=-1), list(items),\
-                   torch.cat(asssy_dess, dim=0), IC50_f_list, Kd_f_list, Ki_f_list
-
-class ChEMBL_Dock_PairWise_v2():
+class ChEMBLDock():
     def __init__(self, ligand_representations, prot_graphs, prot_coords, graph_prot_index, df,
                  assays, test_2, assay_des_type, assay_d=None, multi_task=False,
                  ligcut=5.0, protcut=8.0, intercut=12.0, lig_max_neighbors=None, prot_max_neighbors=10,
@@ -267,8 +72,6 @@ class ChEMBL_Dock_PairWise_v2():
         self.pose_select_rules = pose_select_rules
         self.confidence_threshold = confidence_threshold
 
-        # select data according to assay ids
-        # self.select_data(index_flag, lig_graphs, prot_graphs, inter_graphs, labels, graph_prot_index)
         self._load_node_feats_dim()
 
         print(f'num of data in dataset: {len(self.df)}')
@@ -278,25 +81,12 @@ class ChEMBL_Dock_PairWise_v2():
 
     def __getitem__(self, item):
         item_pw = self.get_pair_wise_item(item)
-
         lig_graph, prot_graph, inter_graph, label, item, IC50_f, Kd_f, Ki_f, K_f = self.get_item_data(item)
         lig_graph_2, prot_graph_2, inter_graph_2, label_2, item_2, IC50_f2, Kd_f2, Ki_f2, K_f2 = self.get_item_data(item_pw)
-
         assay_des = self.get_item_assay_emb(item)
 
-        if not self.multi_task:
-            return lig_graph, prot_graph, inter_graph, label, item, assay_des.unsqueeze(dim=0),\
-                   lig_graph_2, prot_graph_2, inter_graph_2, label_2, item_2, assay_des.unsqueeze(dim=0)
-        elif self.multi_task == 'IC50KdKi':
-            return lig_graph, prot_graph, inter_graph, label, item, assay_des.unsqueeze(dim=0),\
-                   IC50_f, Kd_f, Ki_f, \
-                   lig_graph_2, prot_graph_2, inter_graph_2, label_2, item_2, assay_des.unsqueeze(dim=0),\
-                   IC50_f2, Kd_f2, Ki_f2
-        elif self.multi_task == 'IC50K':
-            return lig_graph, prot_graph, inter_graph, label, item, assay_des.unsqueeze(dim=0),\
-                   IC50_f, K_f, \
-                   lig_graph_2, prot_graph_2, inter_graph_2, label_2, item_2, assay_des.unsqueeze(dim=0),\
-                   IC50_f2, K_f2
+        return lig_graph, prot_graph, inter_graph, label, item, assay_des.unsqueeze(dim=0), IC50_f, K_f, \
+               lig_graph_2, prot_graph_2, inter_graph_2, label_2, item_2, assay_des.unsqueeze(dim=0), IC50_f2, K_f2
 
     def get_item_assay_emb(self, item):
         assay_id = self.df['ASSAY_ID'].values[item]
@@ -308,44 +98,12 @@ class ChEMBL_Dock_PairWise_v2():
 
         return assay_des
 
-    def confidence_choice(self, N, affinity_pred_d, affinity_label):
-        if self.pose_select_rules == 'mbp_error_min':
-            affinity_pred = affinity_pred_d['mbp']
-            error_list = [abs(a_p - affinity_label) for a_p in affinity_pred]
-            min_index = -1
-            min_error = 1000000
-            for idx, e in enumerate(error_list):
-                if e < min_error:
-                    min_index = idx
-            return min_index
-        elif self.pose_select_rules == 'mbp_error_threshold':
-            assert self.confidence_threshold is not None
-            affinity_pred = affinity_pred_d['mbp']
-            error_list = [abs(a_p - affinity_label) for a_p in affinity_pred]
-            min_index = -1
-            min_error = 1000000
-            valid_index_list = []
-            for idx, e in enumerate(error_list):
-                if e < min_error:
-                    min_index = idx
-                if e < self.confidence_threshold:
-                    valid_index_list.append(idx)
-
-            if len(valid_index_list) == 0:
-                return min_index
-            else:
-                random.shuffle(valid_index_list)
-                return valid_index_list[0]
-        else:
-            return random.randint(0, N - 1)
-
     def get_item_data(self, item):
         label = deepcopy(self.labels[item])
 
         lig_coords, lig_features, lig_edges, lig_node_types = self.ligand_representations[item]
         if isinstance(lig_coords, list):
-            # conf_index = random.randint(0, len(lig_coords) - 1)
-            conf_index = self.confidence_choice(len(lig_coords), self.poses_pred_affinities[item], label)
+            conf_index = random.randint(0, len(lig_coords) - 1)
             lig_coords = lig_coords[conf_index]
 
         lig_graph = commons.get_lig_graph_equibind(lig_coords, lig_features, lig_edges, lig_node_types,
@@ -403,176 +161,6 @@ class ChEMBL_Dock_PairWise_v2():
         self.pro_node_dim = prot_graph.ndata['h'].shape[1]
         self.pro_edge_dim = prot_graph.edata['e'].shape[1]
         self.inter_edge_dim = 15
-
-
-class ChEMBL_Dock_PointWise_v2(ChEMBL_Dock_PairWise_v2):
-    def __init__(self, ligand_representations, prot_graphs, prot_coords, graph_prot_index, df,
-                 assays, test_2, assay_des_type, assay_d=None, multi_task=False,
-                 ligcut=5.0, protcut=8.0, intercut=12.0, lig_max_neighbors=None, prot_max_neighbors=10,
-                 inter_min_neighbors=None, inter_max_neighbors=None, add_chemical_bond_feats=True,
-                 use_mean_node_features=False, poses_pred_affinities=None, pose_select_rules=None,
-                 confidence_threshold=0.3):
-        super(ChEMBL_Dock_PointWise_v2, self).__init__(ligand_representations, prot_graphs, prot_coords, graph_prot_index, df,
-                                                       assays, test_2, assay_des_type, assay_d, multi_task,
-                                                       ligcut, protcut, intercut, lig_max_neighbors, prot_max_neighbors,
-                                                       inter_min_neighbors, inter_max_neighbors, add_chemical_bond_feats,
-                                                       use_mean_node_features, poses_pred_affinities, pose_select_rules,
-                                                       confidence_threshold)
-
-    def __getitem__(self, item):
-        lig_graph, prot_graph, inter_graph, label, item, IC50_f, Kd_f, Ki_f, K_f = self.get_item_data(item)
-        assay_des = self.get_item_assay_emb(item)
-
-        if not self.multi_task:
-            return lig_graph, prot_graph, inter_graph, label, item, assay_des.unsqueeze(dim=0)
-        elif self.multi_task == 'IC50KdKi':
-            return lig_graph, prot_graph, inter_graph, label, item, assay_des.unsqueeze(dim=0), IC50_f, Kd_f, Ki_f
-        elif self.multi_task == 'IC50K':
-            return lig_graph, prot_graph, inter_graph, label, item, assay_des.unsqueeze(dim=0), IC50_f, K_f
-
-class ChEMBL_Dock_Inference(ChEMBL_Dock_PairWise_v2):
-    def __init__(self, ligand_representations, prot_graphs, prot_coords, graph_prot_index, df,
-                 assays, test_2, assay_des_type, assay_d=None, multi_task=False,
-                 ligcut=5.0, protcut=8.0, intercut=12.0, lig_max_neighbors=None, prot_max_neighbors=10,
-                 inter_min_neighbors=None, inter_max_neighbors=None, add_chemical_bond_feats=True,
-                 use_mean_node_features=False, poses_pred_affinities=None, pose_select_rules=None,
-                 confidence_threshold=0.3):
-        super(ChEMBL_Dock_Inference, self).__init__(ligand_representations, prot_graphs, prot_coords, graph_prot_index, df,
-                                                    assays, test_2, assay_des_type, assay_d, multi_task,
-                                                    ligcut, protcut, intercut, lig_max_neighbors, prot_max_neighbors,
-                                                    inter_min_neighbors, inter_max_neighbors, add_chemical_bond_feats,
-                                                    use_mean_node_features, poses_pred_affinities, pose_select_rules,
-                                                    confidence_threshold)
-
-    def get_item_data(self, item):
-        label = deepcopy(self.labels[item])
-        IC50_f = deepcopy(self.IC50_flag[item])
-        Kd_f = deepcopy(self.Kd_flag[item])
-        Ki_f = deepcopy(self.Ki_flag[item])
-        K_f = deepcopy(self.K_flag[item])
-
-        prot_graph_index = self.graph_prot_index[item]
-        prot_graph = deepcopy(self.prot_graphs[prot_graph_index])
-
-        lig_coords, lig_features, lig_edges, lig_node_types = self.ligand_representations[item]
-        if isinstance(lig_coords, list):
-            # conf_index = random.randint(0, len(lig_coords) - 1)
-            lig_graphs_list, prot_graphs_list, inter_graphs_list = [], [], []
-            for lig_coord in lig_coords:
-                lig_graph = commons.get_lig_graph_equibind(lig_coord, lig_features, lig_edges, lig_node_types,
-                                                           max_neighbors=self.lig_max_neighbors, cutoff=self.ligcut)
-
-                if self.add_chemical_bond_feats:
-                    lig_graph.edata['e'] = torch.cat([lig_graph.edata['e'], lig_graph.edata['bond_type']], dim=-1)
-
-                if self.use_mean_node_features:
-                    lig_graph.ndata['h'] = torch.cat([lig_graph.ndata['h'], lig_graph.ndata['mu_r_norm']], dim=-1)
-                    prot_graph.ndata['h'] = torch.cat([prot_graph.ndata['h'], prot_graph.ndata['mu_r_norm']], dim=-1)
-
-                inter_graph = commons.get_interact_graph_knn(lig_coord, self.prot_coords[prot_graph_index],
-                                                             cutoff=self.intercut,
-                                                             max_neighbor=self.inter_max_neighbors,
-                                                             min_neighbor=self.inter_min_neighbors)
-                inter_d = inter_graph.edata['d']
-                squared_distance = inter_d ** 2
-                all_sigmas_dist = [1.5 ** x for x in range(15)]
-                prot_square_distance_scale = 10.0
-                x_rel_mag = torch.cat([torch.exp(-(squared_distance / prot_square_distance_scale) / sigma) for sigma in
-                                       all_sigmas_dist], dim=-1)
-                inter_graph.edata['e'] = x_rel_mag
-
-                lig_graphs_list.append(lig_graph)
-                prot_graphs_list.append(deepcopy(prot_graph))
-                inter_graphs_list.append(inter_graph)
-
-            return dgl.batch(lig_graphs_list), dgl.batch(prot_graphs_list), dgl.batch(inter_graphs_list),\
-                   torch.unsqueeze(torch.stack([label] * len(lig_coords), dim=0), dim=-1), \
-                   [item] * len(lig_coords), [IC50_f] * len(lig_coords),\
-                   [Kd_f] * len(lig_coords), [Ki_f] * len(lig_coords), [K_f] * len(lig_coords)
-
-        else:
-            lig_graph = commons.get_lig_graph_equibind(lig_coords, lig_features, lig_edges, lig_node_types,
-                                                       max_neighbors=self.lig_max_neighbors, cutoff=self.ligcut)
-
-            if self.add_chemical_bond_feats:
-                lig_graph.edata['e'] = torch.cat([lig_graph.edata['e'], lig_graph.edata['bond_type']], dim=-1)
-
-
-            if self.use_mean_node_features:
-                lig_graph.ndata['h'] = torch.cat([lig_graph.ndata['h'], lig_graph.ndata['mu_r_norm']], dim=-1)
-                prot_graph.ndata['h'] = torch.cat([prot_graph.ndata['h'],prot_graph.ndata['mu_r_norm']], dim=-1)
-
-            inter_graph = commons.get_interact_graph_knn(lig_coords, self.prot_coords[prot_graph_index],
-                                                         cutoff=self.intercut, max_neighbor=self.inter_max_neighbors,
-                                                         min_neighbor=self.inter_min_neighbors)
-            inter_d = inter_graph.edata['d']
-            squared_distance = inter_d ** 2
-            all_sigmas_dist = [1.5 ** x for x in range(15)]
-            prot_square_distance_scale = 10.0
-            x_rel_mag = torch.cat([torch.exp(-(squared_distance / prot_square_distance_scale) / sigma) for sigma in
-                                   all_sigmas_dist], dim=-1)
-            inter_graph.edata['e'] = x_rel_mag
-
-            return lig_graph, prot_graph, inter_graph, label.unsqueeze(dim=-1), [item], [IC50_f], [Kd_f], [Ki_f], [K_f]
-
-    def __getitem__(self, item):
-        lig_graph, prot_graph, inter_graph, label, item, IC50_f, Kd_f, Ki_f, K_f = self.get_item_data(item)
-        assay_des = self.get_item_assay_emb(item)
-
-        if not self.multi_task:
-            return lig_graph, prot_graph, inter_graph, label, item, assay_des.unsqueeze(dim=0)
-        elif self.multi_task == 'IC50KdKi':
-            return lig_graph, prot_graph, inter_graph, label, item, assay_des.unsqueeze(dim=0), IC50_f, Kd_f, Ki_f
-        elif self.multi_task == 'IC50K':
-            return lig_graph, prot_graph, inter_graph, label, item, assay_des.unsqueeze(dim=0), IC50_f, K_f
-
-class ChEMBL_Dock_Valid_v2(ChEMBL_Dock_PairWise_v2):
-    def __init__(self, ligand_representations, prot_graphs, prot_coords, graph_prot_index, df,
-                 assays, test_2, assay_des_type, assay_d=None, multi_task=False,
-                 ligcut=5.0, protcut=8.0, intercut=12.0, lig_max_neighbors=None, prot_max_neighbors=10,
-                 inter_min_neighbors=None, inter_max_neighbors=None, add_chemical_bond_feats=True,
-                 use_mean_node_features=False, poses_pred_affinities=None, pose_select_rules=None,
-                 confidence_threshold=0.3):
-
-        super(ChEMBL_Dock_Valid_v2, self).__init__(ligand_representations, prot_graphs, prot_coords, graph_prot_index, df,
-                                                   assays, test_2, assay_des_type, assay_d, multi_task,
-                                                   ligcut, protcut, intercut, lig_max_neighbors, prot_max_neighbors,
-                                                   inter_min_neighbors, inter_max_neighbors, add_chemical_bond_feats,
-                                                   use_mean_node_features, poses_pred_affinities, pose_select_rules,
-                                                   confidence_threshold)
-
-        num_of_assay = len(self.df['ASSAY_ID'].unique())
-        print(f'num of assay in valid dataset: {num_of_assay}')
-
-    def __len__(self):
-        return len(self.df['ASSAY_ID'].unique())
-
-    def __getitem__(self, item):
-        assay_id = self.assays[item]
-        assay_des = self.assay_d[assay_id]
-        global_indexs = self.assay_to_index[assay_id]
-        g_ligs, g_prots, g_inters, labels, items, asssy_dess = [], [], [], [], [], []
-        IC50_f_list, Kd_f_list, Ki_f_list = [], [], []
-        for idx in global_indexs:
-            lig_graph, prot_graph, inter_graph, label, item, IC50_f, Kd_f, Ki_f, K_f = self.get_item_data(idx)
-            g_ligs.append(lig_graph)
-            g_prots.append(prot_graph)
-            g_inters.append(inter_graph)
-            labels.append(label)
-            items.append(item)
-            asssy_dess.append(assay_des.unsqueeze(dim=0))
-            IC50_f_list.append(IC50_f)
-            Kd_f_list.append(Kd_f)
-            Ki_f_list.append(Ki_f)
-
-        if not self.multi_task:
-            return dgl.batch(g_ligs), dgl.batch(g_prots), dgl.batch(g_inters),\
-                   torch.unsqueeze(torch.stack(labels, dim=0), dim=-1), list(items),\
-                   torch.cat(asssy_dess, dim=0)
-        else:
-            return dgl.batch(g_ligs), dgl.batch(g_prots), dgl.batch(g_inters),\
-                   torch.unsqueeze(torch.stack(labels, dim=0), dim=-1), list(items),\
-                   torch.cat(asssy_dess, dim=0), IC50_f_list, Kd_f_list, Ki_f_list
 
 class pdbbind_finetune():
     def __init__(self, complex_names_path, dataset_name, labels_path, config):
@@ -781,69 +369,21 @@ class pdbbind_finetune():
 
         processed_data = (lig_graphs, prot_graphs, inter_graphs, labels)
         with open(f'{self.processed_dir}/multi_graphs.pkl','wb') as f:
-            pickle.dump(processed_data,f)
+            pickle.dump(processed_data, f)
 
-
-# def collate_affinity(batch):
-#     g_ligs, g_prots, g_inters, labels, items = list(zip(*batch))
-#     return dgl.batch(g_ligs), dgl.batch(g_prots), dgl.batch(g_inters), torch.unsqueeze(torch.stack(labels, dim=0), dim=-1), list(items)
-
-def collate_pdbbind_affinity(batch):
-    g_ligs, g_prots, g_inters, labels, items, des_list = list(zip(*batch))
-    return dgl.batch(g_ligs), dgl.batch(g_prots), dgl.batch(g_inters),\
-           torch.unsqueeze(torch.stack(labels, dim=0), dim=-1), list(items),\
-           torch.cat(des_list, dim=0)
-
-def collate_pdbbind_affinity_multi_task(batch):
-    g_ligs, g_prots, g_inters, labels, items, des_list, IC50_f_list, Kd_f_list, Ki_f_list = list(zip(*batch))
-    return dgl.batch(g_ligs), dgl.batch(g_prots), dgl.batch(g_inters),\
-           torch.unsqueeze(torch.stack(labels, dim=0), dim=-1), list(items),\
-           torch.cat(des_list, dim=0), list(IC50_f_list), list(Kd_f_list), list(Ki_f_list)
-
-def collate_pdbbind_affinity_multi_task_v2(batch):
+def collate_finetune(batch):
     g_ligs, g_prots, g_inters, labels, items, des_list, IC50_f_list, K_f_list = list(zip(*batch))
     return dgl.batch(g_ligs), dgl.batch(g_prots), dgl.batch(g_inters),\
            torch.unsqueeze(torch.stack(labels, dim=0), dim=-1), list(items),\
            torch.cat(des_list, dim=0), list(IC50_f_list), list(K_f_list)
 
-def collate_affinity_pair_wise(batch):
-    g_ligs1, g_prots1, g_inters1, labels1, items1, des1_list,\
-    g_ligs2, g_prots2, g_inters2, labels2, items2, des2_list = list(zip(*batch))
-    g_ligs = g_ligs1 + g_ligs2
-    g_prots = g_prots1 + g_prots2
-    g_inters = g_inters1 + g_inters2
-    labels =  labels1 + labels2
-    items = items1 + items2
-    des_list = des1_list + des2_list
-    return dgl.batch(g_ligs), dgl.batch(g_prots), dgl.batch(g_inters),\
-           torch.unsqueeze(torch.stack(labels, dim=0), dim=-1), list(items),\
-           torch.cat(des_list, dim=0)
-
-def collate_affinity_pair_wise_multi_task(batch):
-    g_ligs1, g_prots1, g_inters1, labels1, items1, des1_list, IC50_f_list1, Kd_f_list1, Ki_f_list1, \
-    g_ligs2, g_prots2, g_inters2, labels2, items2, des2_list, IC50_f_list2, Kd_f_list2, Ki_f_list2 = list(zip(*batch))
-    g_ligs = g_ligs1 + g_ligs2
-    g_prots = g_prots1 + g_prots2
-    g_inters = g_inters1 + g_inters2
-    labels =  labels1 + labels2
-    items = items1 + items2
-    des_list = des1_list + des2_list
-    IC50_f_list = IC50_f_list1 + IC50_f_list2
-    Kd_f_list = Kd_f_list1 + Kd_f_list2
-    Ki_f_list = Ki_f_list1 + Ki_f_list2
-
-    return dgl.batch(g_ligs), dgl.batch(g_prots), dgl.batch(g_inters),\
-           torch.unsqueeze(torch.stack(labels, dim=0), dim=-1), list(items),\
-           torch.cat(des_list, dim=0), list(IC50_f_list), list(Kd_f_list), list(Ki_f_list)
-
-
-def collate_affinity_pair_wise_multi_task_v2(batch):
+def collate_pretrain(batch):
     g_ligs1, g_prots1, g_inters1, labels1, items1, des1_list, IC50_f_list1, K_f_list1, \
     g_ligs2, g_prots2, g_inters2, labels2, items2, des2_list, IC50_f_list2, K_f_list2 = list(zip(*batch))
     g_ligs = g_ligs1 + g_ligs2
     g_prots = g_prots1 + g_prots2
     g_inters = g_inters1 + g_inters2
-    labels =  labels1 + labels2
+    labels = labels1 + labels2
     items = items1 + items2
     des_list = des1_list + des2_list
     IC50_f_list = IC50_f_list1 + IC50_f_list2

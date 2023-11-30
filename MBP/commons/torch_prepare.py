@@ -65,16 +65,7 @@ def get_optimizer_ablation(config, model, interact_ablation):
 
 def get_dataset(config, ddp=False):
     if config.data.dataset_name == 'chembl_in_pdbbind_smina':
-        if config.data.split_type == 'assay_specific':
-            if ddp and config.train.use_memory_efficient_dataset == 'v1':
-                train_data, val_data = dataset.load_memoryefficient_ChEMBL_Dock(config)
-                test_data = None
-            elif config.train.use_memory_efficient_dataset == 'v2':
-                train_data, val_data = dataset.load_ChEMBL_Dock_v2(config)
-                test_data = None
-            else:
-                train_data, val_data = dataset.load_ChEMBL_Dock(config)
-                test_data = None
+        train_data, val_data = dataset.load_ChEMBL_Dock(config)
 
     return train_data, val_data, test_data
 
