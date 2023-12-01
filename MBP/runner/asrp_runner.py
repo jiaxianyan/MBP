@@ -67,7 +67,6 @@ class DefaultRunner(object):
 
     def get_loss_fn(self):
         self.loss_fn = nn.MSELoss()
-        self.ranking_fn = losses.pair_wise_ranking_loss_v2(self.config).to(self.device)
 
     def trans_device(self,batch):
         return [x if isinstance(x, list) else x.to(self.device) for x in batch]

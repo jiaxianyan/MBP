@@ -26,27 +26,22 @@ class ASRP_head(nn.Module):
         super(ASRP_head, self).__init__()
 
         self.readout = layers.ReadsOutLayer(config.model.inter_out_dim, config.model.readout)
-
         self.FC = layers.FC(config.model.inter_out_dim * 2, config.model.fintune_fc_hidden_dim, config.model.dropout, config.model.out_dim)
-
         self.regression_loss_fn = nn.MSELoss(reduce=False)
         self.ranking_loss_fn = losses.pairwise_BCE_loss(config)
 
     def forward(self, bg_inter, bond_feats_inter, ass_des, labels, select_flag):
         graph_embedding = self.readout(bg_inter, bond_feats_inter)
-
         affinity_pred = self.FC(graph_embedding)
-        ranking_assay_embedding = torch.zeros(len(affinity_pred))
 
         y_pred_num = len(affinity_pred)
         assert y_pred_num % 2 == 0
-
-        regression_loss = self.regression_loss_fn(affinity_pred[:y_pred_num // 2], labels[:y_pred_num // 2])  #
+        regression_loss = self.regression_loss_fn(affinity_pred[:y_pred_num // 2], labels[:y_pred_num // 2])
         labels_select = labels[:y_pred_num // 2][select_flag[:y_pred_num // 2]]
         affinity_pred_select = affinity_pred[:y_pred_num // 2][select_flag[:y_pred_num // 2]]
         regression_loss_select = regression_loss[select_flag[:y_pred_num // 2]].sum()
 
-        ranking_loss, relation, relation_pred = self.ranking_loss_fn(graph_embedding, labels, ranking_assay_embedding)  #
+        ranking_loss, relation, relation_pred = self.ranking_loss_fn(graph_embedding, labels)
         ranking_loss_select = ranking_loss[select_flag[:y_pred_num // 2]].sum()
         relation_select = relation[select_flag[:y_pred_num // 2]]
         relation_pred_selcet = relation_pred[select_flag[:y_pred_num // 2]]
@@ -61,9 +56,7 @@ class ASRP_head(nn.Module):
 
         regression_loss = self.regression_loss_fn(affinity_pred, labels)  #
         regression_loss_select = regression_loss[select_flag].sum()
-
         labels_select = labels[select_flag]
-
         affinity_pred_select = affinity_pred[select_flag]
 
         return regression_loss_select, labels_select, affinity_pred_select
