@@ -58,9 +58,11 @@ python3 result_reproduce.py --work_dir=workdir/finetune/tankbind
 cp scripts/pretrain.py ./
 python3 pretrain.py --config_path=config/affinity_default.yaml
 
-# DDP training with multi-GPUs
+# DDP training with 4-GPUs
+# we advise initiating the process by executing the pretrain.py script.
+# the pretrain.py will facilitate the preparation of the dataset, thereby ensuring it is ready for subsequent DDP training.
 cp scripts/pretrain_ddp.py ./
-CUDA_VISIBLE_DEVICES="YOUR_GPU_IDS" python3 -m torch.distributed.launch --nproc_per_node=NUM_GPUS_YOU_HAVE pretrain_ddp.py --config_path=config/affinity_default.yaml
+CUDA_VISIBLE_DEVICES="0,1,2,3" python3 -m torch.distributed.launch --nproc_per_node=4 pretrain_ddp.py --config_path=config/affinity_default.yaml
 ```
 
 ### Fine-tuning on PDBbind and testing on CSAR-HIQ

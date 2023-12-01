@@ -694,9 +694,6 @@ def read_ligands_chembl_smina(name, valid_ligand_index, dataset_path, ligcut, li
 
     for index, valid in enumerate(valid_ligand_index):
         lig_path_sdf = os.path.join(dataset_path, name, 'ligand_smina_poses', f'{index}_1.sdf')
-        # lig_path_mol2 = os.path.join(dataset_path, name, 'ligand_smina_poses', f'{index}.mol2')
-        # if docking_type == 'blind':
-        #     lig_path_mol2 = os.path.join(dataset_path, name, 'ligand_smina_poses', f'{index}_blind.mol2')
         if valid:
             if lig_type == 'openbabel':
                 try:

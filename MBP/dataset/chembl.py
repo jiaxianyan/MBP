@@ -51,7 +51,6 @@ class ChEMBLDock():
 
         self.assays = assays
         self.test_2 = test_2
-        self.assay_des_type = assay_des_type
         self.assay_d = assay_d
 
         self.ligcut = ligcut
@@ -66,8 +65,6 @@ class ChEMBLDock():
         self.use_mean_node_features = use_mean_node_features
 
         self.poses_pred_affinities = poses_pred_affinities
-        self.pose_select_rules = pose_select_rules
-        self.confidence_threshold = confidence_threshold
 
         self._load_node_feats_dim()
 

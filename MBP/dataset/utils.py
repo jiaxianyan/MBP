@@ -65,7 +65,7 @@ def process_chembl(config):
     top_N = config.data.top_N
     test_2 = config.data.test_2
     add_chemical_bond_feats = config.data.add_chemical_bond_feats
-    docking_type = config.data.docking_type
+    docking_type = 'site_specific'
 
     affinity_type = ''
     affinity_type_num = 0

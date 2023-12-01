@@ -112,7 +112,7 @@ class DefaultRunner(object):
             batch_ranking_ic50_losses, batch_ranking_k_losses = [], []
             batch_cnt = 0
 
-            if ddp and self.config.train.use_memory_efficient_dataset != 'v1':
+            if ddp:
                 dataloader.sampler.set_epoch(epoch)
 
             for batch in dataloader:
@@ -131,7 +131,7 @@ class DefaultRunner(object):
                                   self.config.train.pretrain_mtl_K_lambda * regression_loss_K
 
                 ranking_loss = self.config.train.pretrain_mtl_IC50_lambda * ranking_loss_IC50 + \
-                               self.config.train.pretrain_mtl_Kd_lambda * ranking_loss_K
+                               self.config.train.pretrain_mtl_K_lambda * ranking_loss_K
 
                 pretrain_loss = self.config.train.pretrain_ranking_loss_lambda * ranking_loss +\
                                 self.config.train.pretrain_regression_loss_lambda * regression_loss
@@ -148,10 +148,10 @@ class DefaultRunner(object):
                 batch_losses.append(pretrain_loss.item())
 
                 batch_regression_ic50_losses.append(self.config.train.pretrain_mtl_IC50_lambda * regression_loss_IC50.item())
-                batch_regression_k_losses.append(self.config.train.pretrain_mtl_Kd_lambda * regression_loss_K.item())
+                batch_regression_k_losses.append(self.config.train.pretrain_mtl_K_lambda * regression_loss_K.item())
 
                 batch_ranking_ic50_losses.append(self.config.train.pretrain_mtl_IC50_lambda * ranking_loss_IC50.item())
-                batch_ranking_k_losses.append(self.config.train.pretrain_mtl_Kd_lambda * ranking_loss_K.item())
+                batch_ranking_k_losses.append(self.config.train.pretrain_mtl_K_lambda * ranking_loss_K.item())
 
             train_losses.append(sum(batch_losses))
 

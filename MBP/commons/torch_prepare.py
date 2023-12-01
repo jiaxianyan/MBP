@@ -66,7 +66,7 @@ def get_optimizer_ablation(config, model, interact_ablation):
 def get_dataset(config, ddp=False):
     if config.data.dataset_name == 'chembl_in_pdbbind_smina':
         train_data, val_data = dataset.load_ChEMBL_Dock(config)
-
+        test_data = None
     return train_data, val_data, test_data
 
 def get_finetune_dataset(config):
