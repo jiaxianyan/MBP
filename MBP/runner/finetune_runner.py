@@ -9,8 +9,7 @@ import numpy as np
 import pandas as pd
 
 class DefaultRunner(object):
-    def __init__(self,train_set, val_set, test_set, csar_set, model, optimizer, scheduler, config,
-                 interact_ablation_model=None):
+    def __init__(self,train_set, val_set, test_set, csar_set, model, optimizer, scheduler, config):
         self.train_set = train_set
         self.val_set = val_set
         self.test_set = test_set
@@ -34,7 +33,6 @@ class DefaultRunner(object):
         if self.finetune_new_affinity_head:
             self.get_new_affinity_head()
 
-        self.interact_ablation_model = interact_ablation_model
 
     def save(self, checkpoint, epoch=None, var_list={}):
         state = {
@@ -220,7 +218,7 @@ class DefaultRunner(object):
                         'best_matric': best_matric,
                     }
                     self.save(self.config.train.save_path, f'best_valid_{repeat_index}', val_list)
-                test_rmse, test_mae, tesr_sd, test_pearson = self.evaluate_mtl_v2('test', verbose=1, logger=self.logger)
+                test_rmse, test_mae, tesr_sd, test_pearson = self.evaluate('test', verbose=1, logger=self.logger)
             else:
                 early_stop += 1
                 if early_stop >= self.config.train.early_stop:

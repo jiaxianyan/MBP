@@ -50,7 +50,7 @@ if __name__ == '__main__':
 
     for i in range(config.train.finetune_times):
         # get model
-        model = globals()[config.model.model_type](config).to(config.train.device)
+        model = globals()[config.model.model_type + '_MTL'](config).to(config.train.device)
 
         # get optimizer
         optimizer = commons.get_optimizer(config.train.optimizer, model)
@@ -59,7 +59,7 @@ if __name__ == '__main__':
         scheduler = commons.get_scheduler(config.train.scheduler, optimizer)
 
         # get runner
-        solver = runner.finetune_runner.DefaultRunner(train_data, val_data, test_data, generalize_csar_data, model, optimizer, scheduler, config, interact_ablation_model)
+        solver = runner.finetune_runner.DefaultRunner(train_data, val_data, test_data, generalize_csar_data, model, optimizer, scheduler, config)
 
         # load pre-trained checkpoint
         if config.train.use_pretrain_model:
@@ -73,14 +73,14 @@ if __name__ == '__main__':
         os.system(cmd)
 
         # test before fintune
-        RMSE, MAE, SD, Pearson = solver.evaluate_mtl_v2('test', verbose=1)
-        test_RMSE, test_MAE, test_SD, test_Pearson = solver.evaluate_mtl_v2('csar', verbose=1)
+        RMSE, MAE, SD, Pearson = solver.evaluate('test', verbose=1)
+        test_RMSE, test_MAE, test_SD, test_Pearson = solver.evaluate('csar', verbose=1)
 
         # train
         RMSE, MAE, SD, Pearson = solver.train(repeat_index=i)
 
         # csar_test
-        test_RMSE, test_MAE, test_SD, test_Pearson = solver.evaluate_mtl_v2('csar', verbose=1)
+        test_RMSE, test_MAE, test_SD, test_Pearson = solver.evaluate('csar', verbose=1)
 
         RMSEs.append(RMSE)
         MAEs.append(MAE)
