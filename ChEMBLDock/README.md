@@ -8,17 +8,17 @@ ChEMBL-Dock can be used for drug design tasks involving protein-ligand interacti
 ChEMBL-Dock consists of three parts:	
 (MBP only utilizes a portion of the data from the second part, and only the second part is introduced in the article.)
 ### 2.1 ChEMBL-Dock-InPDBbind-BlindDocking
-- a.Proteins in this category can all be found in PDBbind. We used the protein structures provided by PDBbind and performed blind docking using SMINA.
-- b.This subset contains affinity data from 391,973 experimental measurements in 38,513 bioassays, involving 1,072 proteins, 222,630 molecules, and 3,506,990 3D binding conformations.
-- c.Download link：https://drive.google.com/file/d/1v1DzzpGyniI-q2zU8750SaMNE46Rojal/view?usp=drive_link
+- a. Proteins in this category can all be found in PDBbind. We used the protein structures provided by PDBbind and performed blind docking using SMINA.
+- b. This subset contains affinity data from 391,973 experimental measurements in 38,513 bioassays, involving 1,072 proteins, 222,630 molecules, and 3,506,990 3D binding conformations.
+- c. Download link：https://drive.google.com/file/d/1v1DzzpGyniI-q2zU8750SaMNE46Rojal/view?usp=drive_link
 ### 2.2 ChEMBL-Dock-InPDBbind-SiteSpecificDocking
-- a.Proteins in this category can all be found in PDBbind. We utilized the protein structures provided by PDBbind to determine the binding sites and performed site-specific docking using SMINA.
-- b.This subset contains affinity data from 391,973 experimental measurements in 38,513 bioassays, involving 1,072 proteins, 222,630 molecules, and 3,439,290 3D binding conformations.
-- c.Download link：https://drive.google.com/file/d/1R0Q4M-A03ZWruyMBwpF3kuZVnMSllIY2/view?usp=drive_link
+- a. Proteins in this category can all be found in PDBbind. We utilized the protein structures provided by PDBbind to determine the binding sites and performed site-specific docking using SMINA.
+- b. This subset contains affinity data from 391,973 experimental measurements in 38,513 bioassays, involving 1,072 proteins, 222,630 molecules, and 3,439,290 3D binding conformations.
+- c. Download link：https://drive.google.com/file/d/1R0Q4M-A03ZWruyMBwpF3kuZVnMSllIY2/view?usp=drive_link
 ### 2.3 ChEMBL-Dock-NotInPDBbind-BlindDocking
-- a.Proteins in this category are not present in PDBbind. We utilized protein structures obtained from PDB and performed blind docking using SMINA.
-- b.It includes affinity data from 113,606 experimental measurements in 13,394 bioassays, involving 1,049 proteins, 75,416 molecules, and 1,016,740 binding conformations.
-- c.Download link:https://drive.google.com/file/d/1WIxbystjFqC5VElPOMpn5iM1eQxB7qC0/view?usp=drive_link
+- a. Proteins in this category are not present in PDBbind. We utilized protein structures obtained from PDB and performed blind docking using SMINA.
+- b. It includes affinity data from 113,606 experimental measurements in 13,394 bioassays, involving 1,049 proteins, 75,416 molecules, and 1,016,740 binding conformations.
+- c. Download link:https://drive.google.com/file/d/1WIxbystjFqC5VElPOMpn5iM1eQxB7qC0/view?usp=drive_link
 
 ## 3.ChEMBL-Dock directory format
 ```
