@@ -15,7 +15,12 @@ bash conda_env.sh
 
 ## Dataset
 ### Pre-training Dataset: ChEMBL-Dock
-If you want to pre-train our models with ChEMBL-Dock then:
+[ChEMBL-Dock](./ChEMBLDock) is a protein-ligand affinity dataset built based on ChEMBL. 
+It consists of protein-ligand binding affinity data from 505,579 experimental measurements in 51,907 bioassays.
+The dataset includes 2,121 proteins, 276,211 molecules, and 7,963,020 3D binding conformations.
+(MBP only utilizes a small portion of the data in the paper.)
+
+If you want to pre-train our models with processed ChEMBL-Dock data then:
 1. download the pre-training dataset ChEMBL-Dock from [Google Drive](https://drive.google.com/file/d/1qX-xm5TjbQQdTIYupgx5JkRGmLPN-I6p/view?usp=share_link)
 2. unzip the directory and place it into `MBP/MBP/data` such that you have the path `MBP/MBP/data/chembl_in_pdbbind_smina`
 
