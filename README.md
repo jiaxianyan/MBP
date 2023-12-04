@@ -1,11 +1,17 @@
-# MBP
+## MBP
 MBP: Multi-task Bioassay Pre-training for Protein-Ligand Binding Affinity Prediction
 
 This is a PyTorch implementation of MBP for the task of predicting protein-ligand binding affinity.
 
 ![MBP_framework](visualization/MBP_framework.png)
 
-## Installation
+## ChEMBL-Dock
+[ChEMBL-Dock](./ChEMBLDock) is a protein-ligand affinity dataset built based on ChEMBL. 
+It consists of protein-ligand binding affinity data from 505,579 experimental measurements in 51,907 bioassays.
+The dataset includes 2,121 proteins, 276,211 molecules, and 7,963,020 3D binding conformations.
+(MBP only utilizes a small portion of the data in the paper.)
+
+## Installation of MBP
 We provide a script **conda_env.sh** that makes it easy to install the dependencies of MBP. You just need to modify several packages according to you cuda version.
 ```
 conda create -y -n torch_geo python=3.7
@@ -15,11 +21,6 @@ bash conda_env.sh
 
 ## Dataset
 ### Pre-training Dataset: ChEMBL-Dock
-[ChEMBL-Dock](./ChEMBLDock) is a protein-ligand affinity dataset built based on ChEMBL. 
-It consists of protein-ligand binding affinity data from 505,579 experimental measurements in 51,907 bioassays.
-The dataset includes 2,121 proteins, 276,211 molecules, and 7,963,020 3D binding conformations.
-(MBP only utilizes a small portion of the data in the paper.)
-
 If you want to pre-train our models with processed ChEMBL-Dock data then:
 1. download the pre-training dataset ChEMBL-Dock from [Google Drive](https://drive.google.com/file/d/1qX-xm5TjbQQdTIYupgx5JkRGmLPN-I6p/view?usp=share_link)
 2. unzip the directory and place it into `MBP/MBP/data` such that you have the path `MBP/MBP/data/chembl_in_pdbbind_smina`
