@@ -72,7 +72,7 @@ CUDA_VISIBLE_DEVICES="0,1,2,3" python3 -m torch.distributed.launch --nproc_per_n
 ```
 
 ### Fine-tuning on PDBbind and testing on CSAR-HIQ
-After obtaining pretrained model, you should replace the value of `test.now` parameter in line 66 of `affinity_default.yaml` as the logging dir for finetuning, then:
+After obtaining pretrained model, you should replace the value of `test.now` parameter in line 49 of `affinity_default.yaml` as the logging dir for finetuning, then:
 ```
 cp scripts/finetune.py ./
 python3 finetune.py --config_path=config/affinity_default.yaml
