@@ -1,7 +1,6 @@
-## MBP
-MBP: Multi-task Bioassay Pre-training for Protein-Ligand Binding Affinity Prediction
+## MBP: Multi-task Bioassay Pre-training for Protein-Ligand Binding Affinity Prediction
 
-This is a PyTorch implementation of MBP for the task of predicting protein-ligand binding affinity.
+This is a PyTorch implementation of MBP for the task of predicting protein-ligand binding affinity. If you encounter any issues, please reach out to jiaxianyan@mail.ustc.edu.cn
 
 ![MBP_framework](visualization/MBP_framework.png)
 
@@ -77,4 +76,14 @@ After obtaining pretrained model, you should replace the value of `test.now` par
 cp scripts/finetune.py ./
 python3 finetune.py --config_path=config/affinity_default.yaml
 ```
-
+## Citation
+If you use or extend our work, please cite the paper as follows:
+```
+@article{Yan2023MultitaskBP,
+  title={Multi-task bioassay pre-training for protein-ligand binding affinity prediction},
+  author={Jiaxian Yan and Zhaofeng Ye and Ziyi Yang and Chengqiang Lu and Shengyu Zhang and Qi Liu and Jiezhong Qiu},
+  journal={Briefings in Bioinformatics},
+  year={2023},
+  volume={25}
+}
+```
