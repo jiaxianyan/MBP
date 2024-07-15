@@ -9,6 +9,8 @@ This is a PyTorch implementation of MBP for the task of predicting protein-ligan
 It consists of protein-ligand binding affinity data from 505,579 experimental measurements in 51,907 bioassays.
 The dataset includes 2,121 proteins, 276,211 molecules, and 7,963,020 3D binding conformations.
 (MBP only utilizes a small portion of the data in the paper.)
+![MBP_framework](visualization/chembl_dock.png)
+
 
 ## Installation of MBP
 We provide a script **conda_env.sh** that makes it easy to install the dependencies of MBP. You just need to modify several packages according to you cuda version.
